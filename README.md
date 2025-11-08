@@ -13,7 +13,7 @@
 - ✅ **semantic diffs** with `difftastic`
 
 
-> ⚠️ **ATTENTION:** This tool is designed for experienced users. You can misconfigure or harm your system with this. Tested on: macOS with Homebrew, Node.js 22, and zsh. Other environments/os are untested. Backups are created during overwrite steps, but use at your own risk.
+> Note: codex-1up does not modify your shell configuration. It installs the Codex CLI and supporting tools, and only writes to `~/.codex/` (with backups on overwrite). Tested on macOS (Homebrew) and Linux; other environments may vary.
 
 > &nbsp;
 > **Why use this?**  

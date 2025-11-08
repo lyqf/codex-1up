@@ -26,15 +26,9 @@
 ## Quick start
 
 ```bash
-# Install via npm (global)
+# Install globally (recommended)
 npm install -g codex-1up
-codex-1up install --yes
-
-# Or run from source
-git clone https://github.com/regenrek/codex-1up && cd codex-1up
-./install.sh --yes
-# Or the wrapper:
-./bin/codex-1up install --yes
+codex-1up install
 ```
 
 ### Common flags
@@ -169,6 +163,22 @@ Then open a new shell (or source your shell rc) to load any alias changes.
 - macOS (Intel/Apple Silicon) via **Homebrew**
 - Linux via **apt**, **dnf**, **pacman**, or **zypper**
 - Windows users: use **WSL** (Ubuntu) and run the Linux path
+
+## Develop locally (from source)
+
+For contributors and advanced users:
+
+```bash
+git clone https://github.com/regenrek/codex-1up
+cd codex-1up
+
+# Use the wrapper to run the same flow as the global CLI
+./bin/codex-1up install
+
+# Or run the CLI package directly in dev
+cd cli && corepack enable && pnpm i && pnpm build
+node ./bin/codex-1up.mjs install
+```
 
 ## License
 

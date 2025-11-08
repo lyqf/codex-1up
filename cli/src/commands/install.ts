@@ -1,18 +1,23 @@
 import { defineCommand } from 'citty'
-import { execa } from 'execa'
+// execa was used only for which-like checks; prefer zx utils
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import { promises as fs } from 'fs'
-import os from 'os'
+import * as os from 'os'
 import { accessSync } from 'fs'
 import * as TOML from 'toml'
 import * as p from '@clack/prompts'
+import { which, $ } from 'zx'
+import { runInstaller } from '../installers/main.js'
+import type { InstallerOptions } from '../installers/types.js'
+import { setRootProfileInline } from './config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 function findRoot() {
-    const a = resolve(__dirname, '../../');
-  const b = resolve(__dirname, '../../..');
-  try { accessSync(resolve(a, 'install.sh')); return a } catch (e) {}
+  const a = resolve(__dirname, '../../')
+  const b = resolve(__dirname, '../../..')
+  try { accessSync(resolve(a, 'templates')); return a } catch (e) {}
+  try { accessSync(resolve(b, 'templates')); return b } catch (e) {}
   return b
 }
 const repoRoot = findRoot()
@@ -31,12 +36,9 @@ export const installCommand = defineCommand({
     'no-vscode': { type: 'boolean', description: 'Skip VS Code extension checks' },
     'git-external-diff': { type: 'boolean', description: 'Set difftastic as git external diff' },
     'install-node': { type: 'string', description: 'nvm|brew|skip' },
-    'agents-md': { type: 'string', description: 'Write starter AGENTS.md to PATH (default PWD/AGENTS.md)', required: false },
-    'agents-template': { type: 'string', description: 'default|typescript|python|shell' }
+    'agents-md': { type: 'string', description: 'Write starter AGENTS.md to PATH (default PWD/AGENTS.md)', required: false }
   },
   async run({ args }) {
-    const installPath = resolve(repoRoot, 'install.sh')
-    const flags: string[] = []
     const cfgPath = resolve(os.homedir(), '.codex', 'config.toml')
     const cfgExists = await pathExists(cfgPath)
     const notifyPath = resolve(os.homedir(), '.codex', 'notify.sh')
@@ -46,37 +48,31 @@ export const installCommand = defineCommand({
     let overwriteConfig: 'yes' | 'no' | undefined
     let allowProfileUpdate = !cfgExists
 
-    // If no flags and in an interactive TTY, offer a friendly guided install
-    const runWizard =
-      process.stdout.isTTY &&
-      !args['dry-run'] &&
-      !args['skip-confirmation'] &&
-      !args.yes &&
-      !args.vscode &&
-      !args['git-external-diff'] &&
-      !args['install-node'] &&
-      typeof args['agents-md'] === 'undefined' &&
-      !args['agents-template']
+    // Interactive by default when in a TTY and not explicitly suppressed.
+    const runWizard = process.stdout.isTTY && !args['dry-run'] && !args['skip-confirmation'] && !args.yes
 
     let chosenProfile: 'balanced'|'safe'|'minimal'|'yolo' = 'balanced'
-    let mode: 'recommended'|'manual' = 'recommended'
     let notifyAction: 'yes'|'no' | undefined
-    let globalAgentsAction: 'create-default'|'overwrite-default'|'skip' | undefined
+    let globalAgentsAction: 'create-default'|'overwrite-default'|'append-default'|'skip' | undefined
+    let notificationSound: string | undefined
 
     if (runWizard) {
-      p.intro('codex-1up · Guided install')
-      const m = await p.select({
-        message: 'Choose install mode',
-        options: [
-          { label: 'Recommended (most users)', value: 'recommended' },
-          { label: 'Manual (advanced)', value: 'manual' },
-        ],
-        initialValue: 'recommended'
-      }) as 'recommended'|'manual'
-      if (p.isCancel(m)) return p.cancel('Install aborted')
-      mode = m
+      p.intro('codex-1up · Install')
 
-      if (mode === 'recommended') {
+      // 1) Ask overwrite first (default: yes)
+      if (cfgExists) {
+        const overwrite = await p.confirm({
+          message: 'Overwrite existing ~/.codex/config.toml with the latest template? (backup will be created)',
+          initialValue: true
+        })
+        if (p.isCancel(overwrite)) return p.cancel('Install aborted')
+        overwriteConfig = overwrite ? 'yes' : 'no'
+        allowProfileUpdate = overwrite
+        if (!overwrite) p.log.info('Keeping existing config (no overwrite).')
+      }
+
+      // 2) Active profile selection
+      {
         const prof = await p.select({
           message: 'Active profile',
           options: [
@@ -90,100 +86,149 @@ export const installCommand = defineCommand({
         if (p.isCancel(prof)) return p.cancel('Install aborted')
         chosenProfile = prof
 
-        if (cfgExists) {
-          const overwrite = await p.confirm({
-            message: 'Overwrite existing ~/.codex/config.toml with the latest template? (backup will be created)',
-            initialValue: false
-          })
-          if (p.isCancel(overwrite)) return p.cancel('Install aborted')
-          overwriteConfig = overwrite ? 'yes' : 'no'
-          allowProfileUpdate = overwrite
-          if (!overwrite) {
-            p.log.info('Keeping existing config (no overwrite).')
-          }
+        // 3) Notification sound: choose + preview loop
+        const soundsDir = resolve(repoRoot, 'sounds')
+        let sounds: string[] = []
+        try { sounds = (await fs.readdir(soundsDir)).filter(n => /\.(wav|mp3|ogg)$/i.test(n)).sort() } catch {}
+        notifyAction = 'yes'
+        let current: string = sounds.includes('noti_1.wav') ? 'noti_1.wav' : (sounds[0] || 'none')
+
+        function makeOptions(cur: string) {
+          return [
+            { label: 'None (no sound)', value: 'none' },
+            ...sounds.map(f => ({ label: f, value: f })),
+            { label: 'Custom path…', value: 'custom' }
+          ]
         }
 
-        const notifyMsg = notifyExists
-          ? 'Update ~/.codex/notify.sh from template? (backup will be created)'
-          : 'Install default ~/.codex/notify.sh (used for notifications)?'
-        const notifyResp = await p.confirm({ message: notifyMsg, initialValue: true })
-        if (p.isCancel(notifyResp)) return p.cancel('Install aborted')
-        notifyAction = notifyResp ? 'yes' : 'no'
+        async function promptCustomPath(initial?: string): Promise<string | null> {
+          const ans = await p.text({ message: 'Enter absolute path to a .wav file', placeholder: initial || '/absolute/path/to/sound.wav', validate(v){
+            if (!v) return 'Path required'
+            if (!v.startsWith('/')) return 'Use an absolute path'
+            if (!/(\.wav|\.mp3|\.ogg)$/i.test(v)) return 'Supported: .wav, .mp3, .ogg'
+            return undefined
+          }})
+          if (p.isCancel(ans)) return null
+          try { await fs.access(String(ans)) } catch { p.log.warn('File not found. Try again.'); return await promptCustomPath(String(ans)) }
+          return String(ans)
+        }
 
-        if (!globalAgentsExists) {
-          const ag = await p.confirm({ message: 'Create a global ~/.codex/AGENTS.md now?', initialValue: false })
-          if (p.isCancel(ag)) return p.cancel('Install aborted')
-          globalAgentsAction = ag ? 'create-default' : 'skip'
+        // initial selection (includes custom)
+        let pick = await p.select({ message: 'Notification sound', options: makeOptions(current), initialValue: current }) as string
+        if (p.isCancel(pick)) return p.cancel('Install aborted')
+        if (pick === 'custom') {
+          const cp = await promptCustomPath()
+          if (cp === null) return p.cancel('Install aborted')
+          current = cp
         } else {
-          const agOverwrite = await p.confirm({ message: 'Overwrite existing ~/.codex/AGENTS.md with default template? (backup will be created)', initialValue: false })
-          if (p.isCancel(agOverwrite)) return p.cancel('Install aborted')
-          globalAgentsAction = agOverwrite ? 'overwrite-default' : 'skip'
+          current = pick
+        }
+        // preview/confirm loop
+        while (true) {
+          const action = await p.select({
+            message: `Selected: ${current}. What next?`,
+            options: [
+              { label: 'Preview ▶ (press p then Enter)', value: 'preview' },
+              { label: 'Use this', value: 'use' },
+              { label: 'Choose another…', value: 'change' }
+            ],
+            initialValue: 'use'
+          }) as 'preview'|'use'|'change'
+          if (p.isCancel(action)) return p.cancel('Install aborted')
+          if (action === 'use') break
+          if (action === 'change') {
+            const next = await p.select({ message: 'Notification sound', options: makeOptions(current), initialValue: current }) as string
+            if (p.isCancel(next)) return p.cancel('Install aborted')
+            if (next === 'custom') {
+              const cp = await promptCustomPath()
+              if (cp === null) return p.cancel('Install aborted')
+              current = cp
+            } else {
+              current = next
+            }
+            continue
+          }
+          // preview
+          try {
+            const abs = current === 'none' ? 'none' : (current.startsWith('/') ? current : resolve(repoRoot, 'sounds', current))
+            await previewSound(abs)
+          } catch (e) { p.log.warn(String(e)) }
+        }
+        notificationSound = current
+
+        if (globalAgentsExists) {
+          const agChoice = await p.select({
+            message: 'Global ~/.codex/AGENTS.md',
+            options: [
+              { label: 'Add to your existing AGENTS.md (Backup will be created)', value: 'append-default' },
+              { label: 'Overwrite existing (Backup will be created)', value: 'overwrite-default' },
+              { label: 'Skip — leave as-is', value: 'skip' },
+            ],
+            initialValue: 'append-default'
+          }) as 'append-default'|'overwrite-default'|'skip'
+          if (p.isCancel(agChoice)) return p.cancel('Install aborted')
+          globalAgentsAction = agChoice
+        } else {
+          globalAgentsAction = 'skip'
         }
       }
     }
-    if (args.yes) flags.push('--yes')
-    if (args['dry-run']) flags.push('--dry-run')
-    if (args['skip-confirmation']) flags.push('--skip-confirmation')
-    if (args.shell) flags.push('--shell', String(args.shell))
-    if (args.vscode) flags.push('--vscode', String(args.vscode))
-    if (args['no-vscode']) flags.push('--no-vscode')
-    if (args['git-external-diff']) flags.push('--git-external-diff')
-    if (args['install-node']) flags.push('--install-node', String(args['install-node']))
-    if (typeof args['agents-md'] !== 'undefined') {
-      const v = args['agents-md']
-      flags.push('--agents-md')
-      if (v) flags.push(String(v))
+
+    // Build installer options
+    const installerOptions: InstallerOptions = {
+      profile: chosenProfile,
+      overwriteConfig,
+      notify: notifyAction,
+      globalAgents: globalAgentsAction,
+      notificationSound,
+      mode: 'manual',
+      installNode: (args['install-node'] as 'nvm'|'brew'|'skip') || 'nvm',
+      shell: String(args.shell || 'auto'),
+      vscodeId: args.vscode ? String(args.vscode) : undefined,
+      noVscode: args['no-vscode'] || false,
+      agentsMd: typeof args['agents-md'] !== 'undefined' ? String(args['agents-md'] || process.cwd()) : undefined,
+      dryRun: args['dry-run'] || false,
+      // Prompts are on by default; CI can pass --yes/--skip-confirmation
+      assumeYes: args.yes || false,
+      skipConfirmation: args['skip-confirmation'] || false
     }
-    if (args['agents-template']) flags.push('--agents-template', String(args['agents-template']))
 
-    if (runWizard && mode === 'recommended') {
-      // Safety summary: require explicit 'yes' acknowledgement
-      // Loop once if user does not type 'yes'
-      const summary = [
-        '',
-        'Recommended will install and configure:',
-        '  • Node.js (via nvm) if missing',
-        '  • Global npm: @openai/codex, @ast-grep/cli (install/upgrade)',
-        '  • Dev tools: fd/rg/fzf/jq/yq (+ difftastic if available)',
-        '  • ~/.codex/config.toml from template',
-        '  • ~/.codex/notify.sh and enable tui.notifications',
-        '  • Default sound: noti_1.wav (copied to ~/.codex/sounds)',
-        '  • Global AGENTS.md (default template) if you opted in',
-        ''
-      ].join('\n')
-      p.note(summary, 'Summary')
-      const ack = await p.text({
-        message: "Type 'yes' to continue with Recommended",
-        placeholder: 'yes',
-        validate(v) { return v === 'yes' ? undefined : "Please type exactly 'yes' to proceed" }
-      })
-      if (p.isCancel(ack)) return p.cancel('Install aborted')
-
+    if (runWizard) {
       const s = p.spinner()
       s.start('Installing prerequisites and writing config')
-      const env = { ...process.env, INSTALL_MODE: 'recommended' } as NodeJS.ProcessEnv
-      if (overwriteConfig) env.CODEX_1UP_OVERWRITE_CONFIG = overwriteConfig
-      if (allowProfileUpdate) env.CODEX_1UP_ACTIVE_PROFILE = chosenProfile
-      if (notifyAction) env.CODEX_1UP_UPDATE_NOTIFY = notifyAction
-      if (globalAgentsAction) env.CODEX_1UP_GLOBAL_AGENTS = globalAgentsAction
-      await execa('bash', [installPath, '--yes', '--skip-confirmation', ...flags], {
-        stdio: 'inherit',
-        env
-      })
-      s.stop('Base install complete')
-      if (allowProfileUpdate) {
-        await setActiveProfile(chosenProfile)
-      } else {
-        p.log.info('Profile unchanged (existing config kept).')
+      try {
+        await runInstaller(installerOptions, repoRoot)
+        s.stop('Base install complete')
+        if (allowProfileUpdate) {
+          await setActiveProfile(chosenProfile)
+        } else {
+          p.log.info('Profile unchanged (existing config kept).')
+        }
+        p.outro('Install finished')
+      } catch (error) {
+        s.stop('Installation failed')
+        p.cancel(`Installation failed: ${error}`)
+        throw error
       }
-      p.outro('Install finished')
       await printPostInstallSummary()
       return
     }
 
-    const child = execa('bash', [installPath, ...flags], { stdio: 'inherit' })
-    await child
-    await printPostInstallSummary()
+    // Non-wizard mode: derive safe defaults and run installer directly
+    try {
+      if (!runWizard) {
+        // Non-interactive defaults
+        overwriteConfig = cfgExists ? 'no' : overwriteConfig
+        allowProfileUpdate = false
+        notifyAction = notifyExists ? 'no' : 'yes'
+        globalAgentsAction = 'skip'
+      }
+      await runInstaller(installerOptions, repoRoot)
+      await printPostInstallSummary()
+    } catch (error) {
+      p.cancel(`Installation failed: ${error}`)
+      throw error
+    }
   }
 })
 
@@ -203,14 +248,16 @@ async function printPostInstallSummary() {
   }
 
   const tools = ['codex', 'ast-grep', 'fd', 'rg', 'fzf', 'jq', 'yq', 'difft', 'difftastic']
-  const results = await Promise.all(tools.map(async (t) => {
-    try {
-      const { stdout } = await execa('bash', ['-lc', `command -v ${t} >/dev/null 2>&1 && echo 1 || echo 0`])
-      return [t, stdout.trim() === '1'] as const
-    } catch {
-      return [t, false] as const
-    }
-  }))
+  const results = await Promise.all(
+    tools.map(async (t) => {
+      try {
+        await which(t)
+        return [t, true] as const
+      } catch {
+        return [t, false] as const
+      }
+    })
+  )
 
   const present = results.filter(([, ok]) => ok).map(([t]) => t)
 
@@ -232,13 +279,33 @@ async function printPostInstallSummary() {
 }
 
 
+async function previewSound(absPath: string) {
+  // Handle 'none'
+  if (absPath.endsWith('/none') || absPath === 'none') return
+  // pick a player
+  const players = [
+    async (p: string) => { await which('afplay'); await $`afplay ${p}` },
+    async (p: string) => { await which('paplay'); await $`paplay ${p}` },
+    async (p: string) => { await which('aplay'); await $`aplay ${p}` },
+    async (p: string) => { await which('mpg123'); await $`mpg123 -q ${p}` },
+    async (p: string) => { await which('ffplay'); await $`ffplay -nodisp -autoexit -loglevel quiet ${p}` }
+  ]
+  for (const run of players) {
+    try { await run(absPath); return } catch { /* try next */ }
+  }
+  throw new Error('No audio player found (afplay/paplay/aplay/mpg123/ffplay)')
+}
+
+
 async function setActiveProfile(name: 'balanced'|'safe'|'minimal'|'yolo') {
   const cfgPath = resolve(os.homedir(), '.codex', 'config.toml')
   try {
     const raw = await fs.readFile(cfgPath, 'utf8')
     const updated = setRootProfileInline(raw, name)
     await fs.writeFile(cfgPath, updated, 'utf8')
-  } catch {}
+  } catch (error) {
+    // Silently fail if config doesn't exist or can't be updated
+  }
 }
 
 

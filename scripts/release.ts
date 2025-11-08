@@ -138,10 +138,9 @@ async function publishPackages(
 		}
 		// Install deps and build before publish
 			// Copy assets from repo root into package
-			run("rm -rf templates scripts install.sh || true", pkgPath);
+			run("rm -rf templates scripts || true", pkgPath);
 			run("cp -R ../templates ./templates", pkgPath);
 			run("cp -R ../scripts ./scripts", pkgPath);
-			run("cp ../install.sh ./install.sh", pkgPath);
 
 		run("pnpm i --frozen-lockfile=false", pkgPath);
 		run("pnpm build", pkgPath);

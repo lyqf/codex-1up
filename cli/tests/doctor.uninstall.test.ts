@@ -1,16 +1,23 @@
 import { describe, it, expect, vi } from 'vitest'
+
+// Mock zx before importing modules under test
+vi.mock('zx', () => {
+  const mock$ = vi.fn(async () => ({}))
+  const mockWhich = vi.fn(async () => {})
+  return { $: mock$, which: mockWhich }
+})
+
 import { doctorCommand } from '../src/commands/doctor'
 import { uninstallCommand } from '../src/commands/uninstall'
-vi.mock('execa', () => ({ execa: vi.fn(async () => ({})) }))
-import { execa } from 'execa'
+import { $ } from 'zx'
 
 describe('doctor/uninstall spawn', () => {
   it('spawns doctor', async () => {
     await doctorCommand.run!({ args: {} as any })
-    expect((execa as unknown as any).mock.calls.length).toBeGreaterThan(0)
+    expect(($ as unknown as any).mock.calls.length).toBeGreaterThan(0)
   })
   it('spawns uninstall', async () => {
     await uninstallCommand.run!({ args: {} as any })
-    expect((execa as unknown as any).mock.calls.length).toBeGreaterThan(0)
+    expect(($ as unknown as any).mock.calls.length).toBeGreaterThan(1)
   })
 })

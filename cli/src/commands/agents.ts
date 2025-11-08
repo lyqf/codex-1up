@@ -28,21 +28,19 @@ async function copyFileWithBackup(src: string, dest: string) {
 }
 
 export const agentsCommand = defineCommand({
-  meta: { name: 'agents', description: 'Write an AGENTS.md from templates' },
+  meta: { name: 'agents', description: 'Write an AGENTS.md template' },
   args: {
-    path: { type: 'string', required: true, description: 'Target repo path or file' },
-    template: { type: 'string', default: 'default', description: 'default|typescript|python|shell' }
+    path: { type: 'string', required: true, description: 'Target repo path or file' }
   },
   async run({ args }) {
     const target = String(args.path)
-    const template = String(args.template || 'default')
-    const src = resolve(repoRoot, 'templates/agent-templates', `AGENTS-${template}.md`)
+    const src = resolve(repoRoot, 'templates/agent-templates', 'AGENTS-default.md')
     const isDir = await pathExists(target).then(async ok => ok && (await fs.stat(target)).isDirectory()).catch(() => false)
     const dest = isDir ? resolve(target, 'AGENTS.md') : target
 
-    if (!(await pathExists(src))) throw new Error(`Unknown template: ${template}`)
+    if (!(await pathExists(src))) throw new Error(`Template not found: ${src}`)
     await copyFileWithBackup(src, dest)
-    process.stdout.write(`Wrote ${dest} (template: ${template})\n`)
+    process.stdout.write(`Wrote ${dest}\n`)
   }
 })
 

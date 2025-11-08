@@ -7,9 +7,10 @@ import os from 'os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 function findRoot(){
-    const a = resolve(__dirname, '../../');
+  const a = resolve(__dirname, '../../');
   const b = resolve(__dirname, '../../..');
-  try { accessSync(resolve(a, 'install.sh')); return a } catch(e) {}
+  try { accessSync(resolve(a, 'templates')); return a } catch(e) {}
+  try { accessSync(resolve(b, 'templates')); return b } catch(e) {}
   return b
 }
 const repoRoot = findRoot()
@@ -37,7 +38,7 @@ function listProfilesFromToml(toml: string): string[] {
   return names
 }
 
-function setRootProfileInline(toml: string, name: string): string {
+export function setRootProfileInline(toml: string, name: string): string {
   const line = `profile = "${name}"`
   if (/^profile\s*=\s*".*"/m.test(toml)) {
     return toml.replace(/^profile\s*=\s*".*"/m, line)

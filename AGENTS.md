@@ -2,11 +2,11 @@
 
 Early development, no users. No backwards compatibility concerns. Do things RIGHT: clean, organized, zero tech debt. Never create compatibility shims.
 
-This repository provides a lightweight installer and helpers that “power up” the OpenAI Codex CLI. It is primarily Bash with a small wrapper executable.
+This repository provides a lightweight installer and helpers that “power up” the OpenAI Codex CLI. It is primarily TypeScript (CLI + zx runtime) with a few Bash helper scripts.
 
 ## Project Structure & Module Organization
 - `bin/codex-1up` — user‑facing wrapper for common tasks (`install`, `agents`, `doctor`, `uninstall`).
-- `install.sh` — main installer; idempotent, interactive by default.
+- `cli/src/installers/` — Node/zx installer modules invoked by the `install` command.
 - `scripts/doctor.sh` / `scripts/uninstall.sh` — health checks and cleanup.
 - `templates/` — Codex config and `AGENTS.md` templates; subfolders for languages.
 - `public/` — assets (e.g., `banner.png`).
@@ -28,8 +28,9 @@ This repository provides a lightweight installer and helpers that “power up”
 - `./bin/codex-1up uninstall` — remove aliases/config this tool created (does not uninstall packages).
 
 ## Coding Style & Naming Conventions
-- Language: Bash (`#!/usr/bin/env bash`) with `set -euo pipefail`.
-- Indentation: 2 spaces; no hard tabs.
+- Languages: TypeScript (Node ESM) and Bash helpers.
+- TS: 2‑space indent; keep imports ESM; prefer small modules; run via `tsx` in dev and build with `tsup`.
+- Bash: `#!/usr/bin/env bash` with `set -euo pipefail`; 2‑space indent; no hard tabs.
 - Files and functions: kebab‑case for scripts, `lower_snake_case` for shell functions/vars.
 - Prefer POSIX utilities; when faster tools exist, use: `fd` for file search, `rg` for text, `jq`/`yq` for JSON/YAML.
 - Validate shell with `shellcheck` and format with `shfmt -i 2 -ci`.
@@ -53,4 +54,3 @@ This repository provides a lightweight installer and helpers that “power up”
 - Prefer `--dry-run` first; review changes before applying.
 - Avoid running with elevated privileges; the scripts do not require `sudo`.
 - Backups are created on overwrite; verify paths before confirming prompts.
-

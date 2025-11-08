@@ -13,37 +13,23 @@ profile = "balanced"                 # active profile: balanced|safe|minimal|yol
 # requests. Disabled by default.
 network_access = true
 
+# UI & notifications (can be toggled by installer)
+[tui]
+# Desktop notifications from the TUI: boolean or filtered list. Default: false
+# Examples: true | ["agent-turn-complete", "approval-requested"]
+notifications = false
+
+# Centralized feature flags — booleans only
 [features]
 web_search_request = true
-
-# Optional privacy & UX
-# disable_response_storage = true     # zero-data-retention mode
-# file_opener = "vscode"              # vscode|vscode-insiders|windsurf|cursor|none
-
-# Reasoning / verbosity (GPT‑5 family)
-# model_reasoning_effort = "medium"   # minimal|low|medium|high|none
-# model_verbosity = "medium"          # low|medium|high
-# model_reasoning_summary = "auto"    # auto|concise|detailed|none
-
-# Sandbox network: keep off unless you need arbitrary HTTP (curl, etc.)
-# [sandbox_workspace_write]
-# network_access = false
-
-# Example: MCP server
-# [mcp_servers.server-name]
-# command = "npx"
-# args = ["-y", "mcp-remote", "https://example.com/api/mcp"]
-
-# Example: Azure provider profile
-# [profiles.azure]
-# model = "gpt-5"
-# model_provider = "azure"
-# [model_providers.azure]
-# name = "Azure"
-# base_url = "https://<resource>.openai.azure.com/openai"
-# env_key = "AZURE_OPENAI_API_KEY"
-# query_params = { api-version = "2025-04-01-preview" }
-# wire_api = "responses"
+unified_exec = false
+streamable_shell = false
+rmcp_client = false
+apply_patch_freeform = false
+view_image_tool = true
+experimental_sandbox_command_assessment = false
+ghost_commit = false
+enable_experimental_windows_sandbox = false
 
 # ---- Profiles (override only what differs from root) -----------------------
 

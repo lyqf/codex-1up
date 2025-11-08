@@ -20,4 +20,12 @@ describe('config init/write', () => {
     expect(data).toMatch(/\[profiles\./)
     expect(data).toMatch(/\[features\]\s*\nweb_search_request\s*=\s*true/)
   })
+
+  it('does not set unsupported reasoning summary in minimal profile', async () => {
+    process.env.HOME = td
+    await runCommand(root, { rawArgs: ['config', 'init', '--force'] })
+    const data = await fs.readFile(CFG, 'utf8')
+    // Ensure minimal profile does not force an unsupported summary value
+    expect(data).not.toMatch(/\[profiles\.minimal\][\s\S]*model_reasoning_summary\s*=/)
+  })
 })

@@ -64,5 +64,25 @@ describe('install wizard main flow', () => {
     expect(opts.globalAgents).toBe('append-default')
     expect(opts.mode).toBe('manual')
   })
-})
 
+  it('allows skipping sound changes (keeps existing)', async () => {
+    captured.length = 0
+    // Reconfigure the select mock to return 'skip' for sound
+    const prompts = await import('@clack/prompts') as any
+    const origSelect = prompts.select
+    prompts.select = vi.fn(async ({ message, options }: any) => {
+      const msg = String(message)
+      if (msg.includes('Active profile')) return 'safe'
+      if (msg === 'Notification sound') return 'skip'
+      if (msg.startsWith('Selected:')) return 'use'
+      if (msg.includes('Global ~/.codex/AGENTS.md')) return 'skip'
+      return (options && options[0] && options[0].value) || null
+    })
+    await installCommand.run!({ args: {} as any })
+    const opts = captured.pop()
+    expect(opts.profile).toBe('safe')
+    expect(opts.notify).toBe('no')
+    expect(opts.notificationSound).toBeUndefined()
+    prompts.select = origSelect
+  })
+})

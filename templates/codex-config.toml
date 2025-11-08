@@ -47,7 +47,6 @@ web_search_request = false
 
 [profiles.minimal]
 model_reasoning_effort = "minimal"
-model_reasoning_summary = "concise"
 [profiles.minimal.features]
 web_search_request = false
 

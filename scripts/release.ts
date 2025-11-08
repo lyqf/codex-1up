@@ -137,16 +137,55 @@ async function publishPackages(
 			continue;
 		}
 		// Install deps and build before publish
-			// Copy assets from repo root into package
+			// Copy assets from repo root into package (ephemeral for packing only)
 			run("rm -rf templates scripts || true", pkgPath);
 			run("cp -R ../templates ./templates", pkgPath);
 			run("cp -R ../scripts ./scripts", pkgPath);
+
+		// Ensure README and LICENSE exist inside the package for npm UI
+		try {
+			const rootReadme = path.resolve(pkgPath, "../README.md");
+			if (fs.existsSync(rootReadme)) {
+				let readme = fs.readFileSync(rootReadme, "utf8");
+				// If README uses local ./public images, rewrite to absolute GitHub raw URLs
+				// Derive repo slug from package.json repository.url when possible
+				let repoSlug = "";
+				try {
+					const repoUrl: string | undefined = manifest?.repository?.url;
+					if (repoUrl) {
+						const m = repoUrl.match(/github\.com\/(.+?)\.git$/);
+						if (m) repoSlug = m[1];
+					}
+				} catch {}
+				if (repoSlug) {
+					readme = readme.replace(
+						/\]\(\.\/public\//g,
+						`] (https://raw.githubusercontent.com/${repoSlug}/main/public/`.replace(" ] ", "]"),
+					);
+				}
+				fs.writeFileSync(path.join(pkgPath, "README.md"), readme);
+			}
+			const rootLicense = path.resolve(pkgPath, "../LICENSE");
+			if (fs.existsSync(rootLicense)) {
+				fs.copyFileSync(rootLicense, path.join(pkgPath, "LICENSE"));
+			}
+		} catch (e) {
+			console.warn("Failed to prepare README/LICENSE in package:", e);
+		}
 
 		run("pnpm i --frozen-lockfile=false", pkgPath);
 		run("pnpm build", pkgPath);
 		const accessFlag = target.access === "public" ? " --access public" : "";
 		console.log(`Publishing ${target.name}@${newVersion}...`);
 		run(`pnpm publish --no-git-checks${accessFlag}`, pkgPath);
+
+		// Clean up ephemeral copies so repo doesn't keep duplicates
+		try {
+			fs.rmSync(path.join(pkgPath, "templates"), { recursive: true, force: true });
+			fs.rmSync(path.join(pkgPath, "scripts"), { recursive: true, force: true });
+			fs.rmSync(path.join(pkgPath, "README.md"), { force: true });
+			fs.rmSync(path.join(pkgPath, "LICENSE"), { force: true });
+		} catch {}
 	}
 
 	createGitCommitAndTag(newVersion);

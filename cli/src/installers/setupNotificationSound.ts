@@ -13,7 +13,15 @@ export async function setupNotificationSound(ctx: InstallerContext): Promise<voi
     const block = `# Notification sound (disabled)\nexport CODEX_DISABLE_SOUND=1\nexport CODEX_CUSTOM_SOUND=""\n`
     if (ctx.options.dryRun) ctx.logger.log(`[dry-run] update ${rcFile}`)
     else await upsertRcBlock(rcFile, block, ctx)
-    ctx.logger.ok('Notification sound disabled in shell rc')
+    // Also clear default in notify.sh for immediate effect
+    const notifyFile = path.join(ctx.homeDir, '.codex', 'notify.sh')
+    if (await fs.pathExists(notifyFile)) {
+      const txt = await fs.readFile(notifyFile, 'utf8')
+      const patched = txt.replace(/^DEFAULT_CODEX_SOUND=.*$/m, 'DEFAULT_CODEX_SOUND=""')
+      if (ctx.options.dryRun) ctx.logger.log(`[dry-run] patch ${notifyFile} DEFAULT_CODEX_SOUND -> empty`)
+      else if (patched !== txt) await fs.writeFile(notifyFile, patched, 'utf8')
+    }
+    ctx.logger.ok('Notification sound disabled')
     return
   }
 

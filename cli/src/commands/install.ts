@@ -95,7 +95,8 @@ export const installCommand = defineCommand({
 
         function makeOptions(cur: string) {
           return [
-            { label: 'None (no sound)', value: 'none' },
+            { label: 'Skip (leave current setup)', value: 'skip' },
+            { label: 'None (disable sounds)', value: 'none' },
             ...sounds.map(f => ({ label: f, value: f })),
             { label: 'Custom path…', value: 'custom' }
           ]
@@ -116,45 +117,55 @@ export const installCommand = defineCommand({
         // initial selection (includes custom)
         let pick = await p.select({ message: 'Notification sound', options: makeOptions(current), initialValue: current }) as string
         if (p.isCancel(pick)) return p.cancel('Install aborted')
-        if (pick === 'custom') {
+        if (pick === 'skip') {
+          // Do not touch existing notify or sound settings
+          notifyAction = 'no'
+          notificationSound = undefined
+        } else if (pick === 'custom') {
           const cp = await promptCustomPath()
           if (cp === null) return p.cancel('Install aborted')
           current = cp
         } else {
           current = pick
         }
-        // preview/confirm loop
-        while (true) {
-          const action = await p.select({
-            message: `Selected: ${current}. What next?`,
-            options: [
-              { label: 'Preview ▶ (press p then Enter)', value: 'preview' },
-              { label: 'Use this', value: 'use' },
-              { label: 'Choose another…', value: 'change' }
-            ],
-            initialValue: 'use'
-          }) as 'preview'|'use'|'change'
-          if (p.isCancel(action)) return p.cancel('Install aborted')
-          if (action === 'use') break
-          if (action === 'change') {
-            const next = await p.select({ message: 'Notification sound', options: makeOptions(current), initialValue: current }) as string
-            if (p.isCancel(next)) return p.cancel('Install aborted')
-            if (next === 'custom') {
-              const cp = await promptCustomPath()
-              if (cp === null) return p.cancel('Install aborted')
-              current = cp
-            } else {
-              current = next
+        if (pick !== 'skip') {
+          // preview/confirm loop
+          while (true) {
+            const action = await p.select({
+              message: `Selected: ${current}. What next?`,
+              options: [
+                { label: 'Preview ▶ (press p then Enter)', value: 'preview' },
+                { label: 'Use this', value: 'use' },
+                { label: 'Choose another…', value: 'change' }
+              ],
+              initialValue: 'use'
+            }) as 'preview'|'use'|'change'
+            if (p.isCancel(action)) return p.cancel('Install aborted')
+            if (action === 'use') break
+            if (action === 'change') {
+              const next = await p.select({ message: 'Notification sound', options: makeOptions(current), initialValue: current }) as string
+              if (p.isCancel(next)) return p.cancel('Install aborted')
+              if (next === 'custom') {
+                const cp = await promptCustomPath()
+                if (cp === null) return p.cancel('Install aborted')
+                current = cp
+              } else if (next === 'skip') {
+                notifyAction = 'no'
+                notificationSound = undefined
+                break
+              } else {
+                current = next
+              }
+              continue
             }
-            continue
+            // preview
+            try {
+              const abs = current === 'none' ? 'none' : (current.startsWith('/') ? current : resolve(repoRoot, 'sounds', current))
+              await previewSound(abs)
+            } catch (e) { p.log.warn(String(e)) }
           }
-          // preview
-          try {
-            const abs = current === 'none' ? 'none' : (current.startsWith('/') ? current : resolve(repoRoot, 'sounds', current))
-            await previewSound(abs)
-          } catch (e) { p.log.warn(String(e)) }
+          if (notificationSound === undefined) notificationSound = current
         }
-        notificationSound = current
 
         if (globalAgentsExists) {
           const agChoice = await p.select({
@@ -174,7 +185,7 @@ export const installCommand = defineCommand({
       }
     }
 
-    // Build installer options
+    // Build installer options (will finalize values below for non-interactive path)
     const installerOptions: InstallerOptions = {
       profile: chosenProfile,
       overwriteConfig,
@@ -222,6 +233,11 @@ export const installCommand = defineCommand({
         allowProfileUpdate = false
         notifyAction = notifyExists ? 'no' : 'yes'
         globalAgentsAction = 'skip'
+        // Finalize options for non-interactive path
+        installerOptions.overwriteConfig = overwriteConfig
+        installerOptions.notify = notifyAction
+        installerOptions.globalAgents = globalAgentsAction
+        installerOptions.notificationSound = notificationSound
       }
       await runInstaller(installerOptions, repoRoot)
       await printPostInstallSummary()

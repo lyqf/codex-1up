@@ -181,12 +181,13 @@ async function publishPackages(
 		run(`pnpm publish --no-git-checks${accessFlag}`, pkgPath);
 
 		// Clean up ephemeral copies so repo doesn't keep duplicates
-		try {
-			fs.rmSync(path.join(pkgPath, "templates"), { recursive: true, force: true });
-			fs.rmSync(path.join(pkgPath, "scripts"), { recursive: true, force: true });
-			fs.rmSync(path.join(pkgPath, "README.md"), { force: true });
-			fs.rmSync(path.join(pkgPath, "LICENSE"), { force: true });
-		} catch {}
+			try {
+				fs.rmSync(path.join(pkgPath, "templates"), { recursive: true, force: true });
+				fs.rmSync(path.join(pkgPath, "scripts"), { recursive: true, force: true });
+				fs.rmSync(path.join(pkgPath, "sounds"), { recursive: true, force: true });
+				fs.rmSync(path.join(pkgPath, "README.md"), { force: true });
+				fs.rmSync(path.join(pkgPath, "LICENSE"), { force: true });
+			} catch {}
 	}
 
 	createGitCommitAndTag(newVersion);

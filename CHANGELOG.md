@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2025-11-08
+
+### Fixed
+- Package now includes bundled notification sounds (`sounds/`).
+  - Added `"sounds"` to `cli/package.json#files`.
+  - Release script copies `sounds/` into the package during publish.
+- Robust template root detection in CLI commands (`install`, `config`, `agents`, `doctor`, `uninstall`):
+  - `findRoot` now walks upward from the command file directory until it finds `templates/codex-config.toml`, ensuring reliable paths from both dev (`src/`) and installed (`dist/`) layouts.
+
+### Changed
+- Release packaging now injects `README.md` and `LICENSE` into the package and cleans ephemeral copies after publish.
+
 ## [0.1]
 
 ### Added

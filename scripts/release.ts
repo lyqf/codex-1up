@@ -138,9 +138,10 @@ async function publishPackages(
 		}
 		// Install deps and build before publish
 			// Copy assets from repo root into package (ephemeral for packing only)
-			run("rm -rf templates scripts || true", pkgPath);
+			run("rm -rf templates scripts sounds || true", pkgPath);
 			run("cp -R ../templates ./templates", pkgPath);
 			run("cp -R ../scripts ./scripts", pkgPath);
+			run("cp -R ../sounds ./sounds", pkgPath);
 
 		// Ensure README and LICENSE exist inside the package for npm UI
 		try {

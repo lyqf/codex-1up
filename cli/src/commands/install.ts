@@ -14,11 +14,16 @@ import { setRootProfileInline } from './config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 function findRoot() {
-  const a = resolve(__dirname, '../../')
-  const b = resolve(__dirname, '../../..')
-  try { accessSync(resolve(a, 'templates')); return a } catch (e) {}
-  try { accessSync(resolve(b, 'templates')); return b } catch (e) {}
-  return b
+  // Walk up to 6 levels looking for templates/codex-config.toml
+  let cur = __dirname
+  for (let i = 0; i < 6; i++) {
+    try {
+      accessSync(resolve(cur, 'templates', 'codex-config.toml'))
+      return cur
+    } catch {}
+    cur = resolve(cur, '..')
+  }
+  return resolve(__dirname, '..')
 }
 const repoRoot = findRoot()
 

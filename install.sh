@@ -257,66 +257,6 @@ ensure_tools() {
   done
 }
 
-configure_git() { info "Skipping git difftool configuration (disabled)"; return 0; }
-
-target_shell_rc() {
-  local st="${SHELL_TARGET}"
-  if [ "$st" = "auto" ]; then
-    case "${SHELL:-}" in
-      */zsh) echo "${HOME}/.zshrc" ;;
-      */bash) echo "${HOME}/.bashrc" ;;
-      */fish) echo "${HOME}/.config/fish/config.fish" ;;
-      *) echo "${HOME}/.bashrc" ;;
-    esac
-  else
-    case "$st" in
-      zsh) echo "${HOME}/.zshrc" ;;
-      bash) echo "${HOME}/.bashrc" ;;
-      fish) echo "${HOME}/.config/fish/config.fish" ;;
-      *) echo "${HOME}/.bashrc" ;;
-    esac
-  fi
-}
-
-configure_shell() { info "Skipping shell alias configuration (disabled)"; return 0; }
-
-
-
-_select_active_profile() {
-  local cfg_path="$1"
-  if $ASSUME_YES || $SKIP_CONFIRMATION; then
-    info "Using default active profile: balanced"
-    return 0
-  fi
-  echo ""
-  info "Select active Codex profile (default: balanced):"
-  echo "  1) balanced  - on-request approvals, workspace-write, web search on"
-  echo "  2) safe      - on-failure approvals, workspace-write, web search off"
-  echo "  3) minimal   - minimal reasoning, concise summaries, web search off"
-  echo "  4) yolo      - never approve, danger-full-access (high risk)"
-  printf "Choose [1-4] (default: 1): "
-  local choice="1"
-  read -r choice || choice="1"
-  local name="balanced"
-  case "$choice" in
-    1|"balanced"|"BALANCED"|"") name="balanced" ;;
-    2|"safe"|"SAFE") name="safe" ;;
-    3|"minimal"|"MINIMAL") name="minimal" ;;
-    4|"yolo"|"YOLO") name="yolo" ;;
-    *) warn "Invalid choice; using balanced"; name="balanced" ;;
-  esac
-  info "Setting active profile to: ${name}"
-  if $DRY_RUN; then
-    echo "[dry-run] set profile = \"${name}\" in ${cfg_path}"
-  else
-    if grep -qE '^profile[[:space:]]*=' "$cfg_path"; then
-      run sed -i.bak -E "s/^profile[[:space:]]*=[[:space:]]*\".*\"/profile = \"${name}\"/" "$cfg_path"
-    else
-      run sed -i.bak -e "1s;^;profile = \"${name}\"\n;" "$cfg_path"
-    fi
-  fi
-}
-
 write_codex_config() {
   local cfg="${HOME}/.codex/config.toml"
   local template_file="${ROOT_DIR}/templates/codex-config.toml"
@@ -509,8 +449,6 @@ main() {
   ensure_node
   install_npm_globals
   ensure_tools
-  configure_git
-  configure_shell
   write_codex_config
   maybe_prompt_global_agents
   maybe_install_vscode_ext
@@ -524,5 +462,4 @@ main() {
 }
 
 main "$@"
-
 

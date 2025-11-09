@@ -15,7 +15,7 @@ const logger: Logger = { log:()=>{}, info:()=>{}, ok:()=>{}, warn:()=>{}, err:()
 
 function makeCtx(sound: string): InstallerContext {
   const options: InstallerOptions = {
-    profile: 'balanced', overwriteConfig: 'no', notify: 'yes', globalAgents: 'skip',
+    profilesAction: 'add', reasoning: 'on', notify: 'yes', globalAgents: 'skip',
     mode: 'manual', installNode: 'skip', shell: 'auto', vscodeId: undefined,
     noVscode: true, agentsMd: undefined, dryRun: false, assumeYes: true, skipConfirmation: true,
     notificationSound: sound
@@ -35,4 +35,3 @@ describe('notification sound patches notify.sh default', () => {
     expect(data).toMatch(new RegExp(`^DEFAULT_CODEX_SOUND=\"${td.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&')}/.codex/sounds/noti_2\\.wav\"`, 'm'))
   })
 })
-

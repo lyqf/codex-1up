@@ -26,10 +26,10 @@ describe('install non-interactive defaults', () => {
     await installCommand.run!({ args: { yes: true, 'skip-confirmation': true } as any })
     expect(captured.length).toBeGreaterThan(0)
     const opts = captured.pop()
-    expect(opts.profile).toBeDefined()
+    expect(opts.profilesAction).toBe('add')
+    expect(opts.reasoning).toBe('on')
     expect(opts.mode).toBe('manual')
     // Global agents skipped by default
     expect(opts.globalAgents).toBe('skip')
   })
 })
-

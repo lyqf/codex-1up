@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4] - 2025-11-09
+
+### Added
+- Key-level Codex config patcher replaces full-template overwrites. We now only touch `[tui]` reasoning/notification keys and the four codex profiles, with automatic backups and atomic writes.
+- New installer flags: `--profiles add|overwrite|skip`, `--reasoning on|off`, and `--sound <path|none|skip>`, plus matching wizard prompts. These make it clear when codex-1up will edit a config and keep non-interactive flows predictable.
+- Regression tests covering profile add/overwrite behavior, reasoning toggles, and notification enablement to ensure future changes stay non-destructive.
+- Design doc `docs/03-new-config-changes.md` explaining the patching strategy for contributors.
+
+### Changed
+- Installer no longer asks about overwriting `config.toml` or switching active profiles; it always performs safe patches unless the user explicitly chooses “overwrite” for the codex profiles.
+- Notification sounds now only force `tui.notifications = true` when it was previously false; custom notification lists remain untouched.
+
+### Fixed
+- Prevented `tui.notifications` from being clobbered when users already had array-based filters.
+- Sound selection logic now honors CLI `--sound` inputs (including `skip`/`none`) even in non-interactive installs.
+
 ## [0.1.3] - 2025-11-09
 
 ### Added

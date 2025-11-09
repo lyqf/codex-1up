@@ -12,13 +12,10 @@ vi.mock('@clack/prompts', () => {
   return {
     intro: vi.fn(),
     isCancel: (v: any) => v === null,
-    confirm: vi.fn(async ({ message }: any) => {
-      if (String(message).includes('Overwrite existing')) return true
-      return true
-    }),
+    confirm: vi.fn(async () => true),
     select: vi.fn(async ({ message, options }: any) => {
       const msg = String(message)
-      if (msg.includes('Active profile')) return 'yolo'
+      if (msg.includes('Install codex profiles')) return 'overwrite'
       if (msg === 'Notification sound') return 'noti_1.wav'
       if (msg.startsWith('Selected:')) return 'use'
       if (msg.includes('Global ~/.codex/AGENTS.md')) return 'append-default'
@@ -51,14 +48,14 @@ beforeAll(async () => {
 afterAll(async () => { try { await fs.rm(td, { recursive: true, force: true }) } catch {} })
 
 describe('install wizard main flow', () => {
-  it('prompts overwrite, profile, sound, agents and passes correct options', async () => {
+  it('prompts config options, sound, agents and passes correct options', async () => {
     // Force TTY
     Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
     await installCommand.run!({ args: {} as any })
     expect(captured.length).toBeGreaterThan(0)
     const opts = captured.pop()
-    expect(opts.profile).toBe('yolo')
-    expect(opts.overwriteConfig).toBe('yes')
+    expect(opts.profilesAction).toBe('overwrite')
+    expect(opts.reasoning).toBe('on')
     expect(opts.notify).toBe('yes')
     expect(typeof opts.notificationSound).toBe('string')
     expect(opts.globalAgents).toBe('append-default')
@@ -72,7 +69,7 @@ describe('install wizard main flow', () => {
     const origSelect = prompts.select
     prompts.select = vi.fn(async ({ message, options }: any) => {
       const msg = String(message)
-      if (msg.includes('Active profile')) return 'safe'
+      if (msg.includes('Install codex profiles')) return 'add'
       if (msg === 'Notification sound') return 'skip'
       if (msg.startsWith('Selected:')) return 'use'
       if (msg.includes('Global ~/.codex/AGENTS.md')) return 'skip'
@@ -80,7 +77,7 @@ describe('install wizard main flow', () => {
     })
     await installCommand.run!({ args: {} as any })
     const opts = captured.pop()
-    expect(opts.profile).toBe('safe')
+    expect(opts.profilesAction).toBe('add')
     expect(opts.notify).toBe('no')
     expect(opts.notificationSound).toBeUndefined()
     prompts.select = origSelect

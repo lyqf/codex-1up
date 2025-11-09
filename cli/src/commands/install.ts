@@ -10,7 +10,6 @@ import * as p from '@clack/prompts'
 import { which, $ } from 'zx'
 import { runInstaller } from '../installers/main.js'
 import type { InstallerOptions } from '../installers/types.js'
-import { setRootProfileInline } from './config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 function findRoot() {
@@ -41,6 +40,9 @@ export const installCommand = defineCommand({
     'no-vscode': { type: 'boolean', description: 'Skip VS Code extension checks' },
     'git-external-diff': { type: 'boolean', description: 'Set difftastic as git external diff' },
     'install-node': { type: 'string', description: 'nvm|brew|skip' },
+    profiles: { type: 'string', description: 'add|overwrite|skip (installer config profiles)' },
+    reasoning: { type: 'string', description: 'on|off for reasoning steps visibility' },
+    sound: { type: 'string', description: 'Sound file, "none", or "skip" to leave unchanged' },
     'agents-md': { type: 'string', description: 'Write starter AGENTS.md to PATH (default PWD/AGENTS.md)', required: false }
   },
   async run({ args }) {
@@ -50,48 +52,64 @@ export const installCommand = defineCommand({
     const notifyExists = await pathExists(notifyPath)
     const globalAgentsPath = resolve(os.homedir(), '.codex', 'AGENTS.md')
     const globalAgentsExists = await pathExists(globalAgentsPath)
-    let overwriteConfig: 'yes' | 'no' | undefined
-    let allowProfileUpdate = !cfgExists
-
     // Interactive by default when in a TTY and not explicitly suppressed.
     const runWizard = process.stdout.isTTY && !args['dry-run'] && !args['skip-confirmation'] && !args.yes
 
-    let chosenProfile: 'balanced'|'safe'|'minimal'|'yolo' = 'balanced'
+    const cliProfilesAction = normalizeProfilesArg(args.profiles)
+    const cliReasoningChoice = normalizeReasoningArg(args.reasoning)
+    const cliSoundArg = typeof args.sound === 'undefined'
+      ? undefined
+      : String(args.sound).trim()
+
+    if (cliSoundArg === '') throw new Error('Invalid --sound value (expected path, "none", or "skip")')
+
+    let profilesAction: 'add'|'overwrite'|'skip' = cliProfilesAction || 'add'
+    let reasoningChoice: 'on'|'off' = cliReasoningChoice || 'on'
     let notifyAction: 'yes'|'no' | undefined
     let globalAgentsAction: 'create-default'|'overwrite-default'|'append-default'|'skip' | undefined
     let notificationSound: string | undefined
 
+    const applySoundSelection = (choice: string) => {
+      const normalized = choice.trim().toLowerCase()
+      if (normalized === 'skip') {
+        notifyAction = 'no'
+        notificationSound = undefined
+        return
+      }
+      notifyAction = 'yes'
+      notificationSound = normalized === 'none' ? 'none' : choice
+    }
+
+    if (cliSoundArg) applySoundSelection(cliSoundArg)
+
     if (runWizard) {
       p.intro('codex-1up · Install')
-
-      // 1) Ask overwrite first (default: yes)
-      if (cfgExists) {
-        const overwrite = await p.confirm({
-          message: 'Overwrite existing ~/.codex/config.toml with the latest template? (backup will be created)',
-          initialValue: true
-        })
-        if (p.isCancel(overwrite)) return p.cancel('Install aborted')
-        overwriteConfig = overwrite ? 'yes' : 'no'
-        allowProfileUpdate = overwrite
-        if (!overwrite) p.log.info('Keeping existing config (no overwrite).')
+      // Config patches: profiles + reasoning toggles
+      if (!cliProfilesAction) {
+        const profileResponse = await p.select({
+          message: 'Install codex profiles (balanced, safe, minimal, yolo)?',
+          options: [
+            { label: 'Add / merge (recommended)', value: 'add' },
+            { label: 'Overwrite codex profiles', value: 'overwrite' },
+            { label: 'Skip profiles', value: 'skip' }
+          ],
+          initialValue: 'add'
+        }) as 'add'|'overwrite'|'skip'
+        if (p.isCancel(profileResponse)) return p.cancel('Install aborted')
+        profilesAction = profileResponse
       }
 
-      // 2) Active profile selection
-      {
-        const prof = await p.select({
-          message: 'Active profile',
-          options: [
-            { label: 'balanced (default)', value: 'balanced' },
-            { label: 'safe', value: 'safe' },
-            { label: 'minimal', value: 'minimal' },
-            { label: 'yolo (risky)', value: 'yolo' },
-          ],
-          initialValue: 'balanced'
-        }) as 'balanced'|'safe'|'minimal'|'yolo'
-        if (p.isCancel(prof)) return p.cancel('Install aborted')
-        chosenProfile = prof
+      if (!cliReasoningChoice) {
+        const reasoningResponse = await p.confirm({
+          message: 'Enable reasoning steps (show raw agent reasoning)?',
+          initialValue: true
+        })
+        if (p.isCancel(reasoningResponse)) return p.cancel('Install aborted')
+        reasoningChoice = reasoningResponse ? 'on' : 'off'
+      }
 
-        // 3) Notification sound: choose + preview loop
+      // Notification sound: choose + preview loop
+      if (!cliSoundArg) {
         const soundsDir = resolve(repoRoot, 'sounds')
         let sounds: string[] = []
         try { sounds = (await fs.readdir(soundsDir)).filter(n => /\.(wav|mp3|ogg)$/i.test(n)).sort() } catch {}
@@ -172,30 +190,39 @@ export const installCommand = defineCommand({
           if (notificationSound === undefined) notificationSound = current
         }
 
-        if (globalAgentsExists) {
-          const agChoice = await p.select({
-            message: 'Global ~/.codex/AGENTS.md',
-            options: [
-              { label: 'Add to your existing AGENTS.md (Backup will be created)', value: 'append-default' },
-              { label: 'Overwrite existing (Backup will be created)', value: 'overwrite-default' },
-              { label: 'Skip — leave as-is', value: 'skip' },
-            ],
-            initialValue: 'append-default'
-          }) as 'append-default'|'overwrite-default'|'skip'
-          if (p.isCancel(agChoice)) return p.cancel('Install aborted')
-          globalAgentsAction = agChoice
-        } else {
-          globalAgentsAction = 'skip'
-        }
+      }
+
+      if (globalAgentsExists) {
+        const agChoice = await p.select({
+          message: 'Global ~/.codex/AGENTS.md',
+          options: [
+            { label: 'Add to your existing AGENTS.md (Backup will be created)', value: 'append-default' },
+            { label: 'Overwrite existing (Backup will be created)', value: 'overwrite-default' },
+            { label: 'Skip — leave as-is', value: 'skip' },
+          ],
+          initialValue: 'append-default'
+        }) as 'append-default'|'overwrite-default'|'skip'
+        if (p.isCancel(agChoice)) return p.cancel('Install aborted')
+        globalAgentsAction = agChoice
+      } else {
+        globalAgentsAction = 'skip'
       }
     }
 
-    // Build installer options (will finalize values below for non-interactive path)
+    if (!runWizard) {
+      if (typeof notifyAction === 'undefined') {
+        notifyAction = notifyExists ? 'no' : 'yes'
+      }
+      if (typeof globalAgentsAction === 'undefined') {
+        globalAgentsAction = 'skip'
+      }
+    }
+
     const installerOptions: InstallerOptions = {
-      profile: chosenProfile,
-      overwriteConfig,
-      notify: notifyAction,
-      globalAgents: globalAgentsAction,
+      profilesAction,
+      reasoning: reasoningChoice,
+      notify: notifyAction ?? (notifyExists ? 'no' : 'yes'),
+      globalAgents: globalAgentsAction ?? 'skip',
       notificationSound,
       mode: 'manual',
       installNode: (args['install-node'] as 'nvm'|'brew'|'skip') || 'nvm',
@@ -204,7 +231,6 @@ export const installCommand = defineCommand({
       noVscode: args['no-vscode'] || false,
       agentsMd: typeof args['agents-md'] !== 'undefined' ? String(args['agents-md'] || process.cwd()) : undefined,
       dryRun: args['dry-run'] || false,
-      // Prompts are on by default; CI can pass --yes/--skip-confirmation
       assumeYes: args.yes || false,
       skipConfirmation: args['skip-confirmation'] || false
     }
@@ -215,11 +241,6 @@ export const installCommand = defineCommand({
       try {
         await runInstaller(installerOptions, repoRoot)
         s.stop('Base install complete')
-        if (allowProfileUpdate) {
-          await setActiveProfile(chosenProfile)
-        } else {
-          p.log.info('Profile unchanged (existing config kept).')
-        }
         p.outro('Install finished')
       } catch (error) {
         s.stop('Installation failed')
@@ -230,20 +251,7 @@ export const installCommand = defineCommand({
       return
     }
 
-    // Non-wizard mode: derive safe defaults and run installer directly
     try {
-      if (!runWizard) {
-        // Non-interactive defaults
-        overwriteConfig = cfgExists ? 'no' : overwriteConfig
-        allowProfileUpdate = false
-        notifyAction = notifyExists ? 'no' : 'yes'
-        globalAgentsAction = 'skip'
-        // Finalize options for non-interactive path
-        installerOptions.overwriteConfig = overwriteConfig
-        installerOptions.notify = notifyAction
-        installerOptions.globalAgents = globalAgentsAction
-        installerOptions.notificationSound = notificationSound
-      }
       await runInstaller(installerOptions, repoRoot)
       await printPostInstallSummary()
     } catch (error) {
@@ -318,18 +326,22 @@ async function previewSound(absPath: string) {
 }
 
 
-async function setActiveProfile(name: 'balanced'|'safe'|'minimal'|'yolo') {
-  const cfgPath = resolve(os.homedir(), '.codex', 'config.toml')
-  try {
-    const raw = await fs.readFile(cfgPath, 'utf8')
-    const updated = setRootProfileInline(raw, name)
-    await fs.writeFile(cfgPath, updated, 'utf8')
-  } catch (error) {
-    // Silently fail if config doesn't exist or can't be updated
-  }
-}
-
-
 async function pathExists(path: string) {
   try { await fs.access(path); return true } catch { return false }
+}
+
+function normalizeProfilesArg(value: unknown): ('add'|'overwrite'|'skip') | undefined {
+  if (value === undefined || value === null) return undefined
+  const normalized = String(value).toLowerCase()
+  if (normalized === 'add' || normalized === 'overwrite' || normalized === 'skip') return normalized
+  if (normalized === 'no') return 'skip'
+  throw new Error('Invalid --profiles value (use add|overwrite|skip|no).')
+}
+
+function normalizeReasoningArg(value: unknown): ('on'|'off') | undefined {
+  if (value === undefined || value === null) return undefined
+  const normalized = String(value).toLowerCase()
+  if (['on', 'true', 'yes'].includes(normalized)) return 'on'
+  if (['off', 'false', 'no'].includes(normalized)) return 'off'
+  throw new Error('Invalid --reasoning value (use on|off).')
 }

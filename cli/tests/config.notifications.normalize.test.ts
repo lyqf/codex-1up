@@ -15,7 +15,7 @@ const logger: Logger = {
 
 function makeCtx(): InstallerContext {
   const options: InstallerOptions = {
-    profile: 'balanced', overwriteConfig: 'no', notify: 'yes', globalAgents: 'skip',
+    profilesAction: 'add', reasoning: 'on', notify: 'yes', globalAgents: 'skip',
     mode: 'manual', installNode: 'skip', shell: 'auto', vscodeId: undefined,
     noVscode: true, agentsMd: undefined, dryRun: false, assumeYes: true, skipConfirmation: true,
     notificationSound: 'none'
@@ -60,4 +60,3 @@ describe('config notify normalization', () => {
     expect(sawTuiNotifications).toBe(true)
   })
 })
-

@@ -1,14 +1,15 @@
 export type Profile = 'balanced' | 'safe' | 'minimal' | 'yolo'
 export type InstallMode = 'recommended' | 'manual'
-export type OverwriteConfig = 'yes' | 'no'
+export type ProfilesAction = 'add' | 'overwrite' | 'skip'
+export type ReasoningChoice = 'on' | 'off'
 export type NotifyAction = 'yes' | 'no'
 export type GlobalAgentsAction = 'create-default' | 'overwrite-default' | 'append-default' | 'skip'
 export type InstallNodeMethod = 'nvm' | 'brew' | 'skip'
 export type PackageManager = 'brew' | 'apt' | 'dnf' | 'pacman' | 'zypper' | 'none'
 
 export interface InstallerOptions {
-  profile: Profile
-  overwriteConfig: OverwriteConfig | undefined
+  profilesAction: ProfilesAction
+  reasoning: ReasoningChoice
   notify: NotifyAction | undefined
   globalAgents: GlobalAgentsAction | undefined
   notificationSound?: string | undefined // 'none' to disable

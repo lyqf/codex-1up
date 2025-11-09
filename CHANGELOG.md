@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.1.5] - 2025-11-09
+
 ### Fixed
 - Skip installing `@ast-grep/cli` via npm when `sg`/`ast-grep` binaries already exist on PATH (avoids npm EEXIST errors on Homebrew installs). (#8)
 

@@ -1,4 +1,4 @@
-import { which } from 'zx'
+import { which, $ } from 'zx'
 import { spawn } from 'node:child_process'
 import type { PackageManager, Logger } from './types.js'
 
@@ -24,6 +24,27 @@ export async function detectPackageManager(): Promise<PackageManager> {
   if (await needCmd('dnf')) return 'dnf'
   if (await needCmd('pacman')) return 'pacman'
   if (await needCmd('zypper')) return 'zypper'
+  return 'none'
+}
+
+// Detect the user's Node package manager preference for global installs.
+// Preference: pnpm -> npm (we avoid yarn global to prevent surprises)
+
+// Prefer pnpm if available and its global bin is configured; otherwise skip to avoid cross-manager installs.
+export async function chooseNodePmForGlobal(logger?: Logger): Promise<'pnpm' | 'npm' | 'none'> {
+  if (await needCmd('pnpm')) {
+    try {
+      const out = await $`pnpm bin -g`.quiet()
+      const binDir = out.stdout.trim()
+      if (binDir) return 'pnpm'
+      // If empty, treat as misconfigured
+      logger?.warn('Detected pnpm but global bin dir is not configured; skipping global Node installs to avoid duplicates. Run "pnpm setup" then re-run.')
+    } catch {
+      logger?.warn('Detected pnpm but global bin dir is not configured; skipping global Node installs to avoid duplicates. Run "pnpm setup" then re-run.')
+    }
+  }
+  // Fallback to npm only when pnpm is NOT present at all.
+  if (!(await needCmd('pnpm'))) return 'npm'
   return 'none'
 }
 

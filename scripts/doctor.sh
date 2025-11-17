@@ -10,6 +10,14 @@ for c in node npm codex ast-grep fd fdfind rg fzf jq yq difft delta code; do
   check "$c"
 done
 
+echo "--- codex paths ---"
+if command -v codex >/dev/null 2>&1; then
+  # Show all codex candidates on PATH (guarded to avoid exiting with -e)
+  type -a codex 2>/dev/null || which -a codex 2>/dev/null || command -v codex 2>/dev/null
+else
+  echo "codex not found on PATH"
+fi
+
 echo "--- git ---"
 echo "diff.external = $(git config --global --get diff.external || echo "(none)")"
 echo "difftool.difftastic.cmd = $(git config --global --get difftool.difftastic.cmd || echo "(none)")"

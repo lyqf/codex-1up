@@ -1,21 +1,30 @@
 import { $ } from 'zx'
 import type { InstallerContext } from './types.js'
-import { needCmd, runCommand } from './utils.js'
+import { needCmd, runCommand, chooseNodePmForGlobal } from './utils.js'
 
 const REQUIRED_PACKAGES = ['@openai/codex', '@ast-grep/cli'] as const
 const AST_GREP_PKG = '@ast-grep/cli'
+const CODEX_PKG = '@openai/codex'
 
 async function astGrepBinaryPresent(): Promise<boolean> {
   return (await needCmd('sg')) || (await needCmd('ast-grep'))
 }
 
 export async function installNpmGlobals(ctx: InstallerContext): Promise<void> {
-  ctx.logger.info('Checking global npm packages (@openai/codex, @ast-grep/cli)')
+  ctx.logger.info('Checking global packages (@openai/codex, @ast-grep/cli)')
 
   const updates: string[] = []
 
   for (const pkg of REQUIRED_PACKAGES) {
     try {
+      // PATH-first: if codex is already available, do not install/upgrade it automatically
+      if (pkg === CODEX_PKG) {
+        if (await needCmd('codex')) {
+          ctx.logger.ok('codex found on PATH; skipping global install/upgrade')
+          continue
+        }
+      }
+
       // Fetch latest version
       const latestResult = await $`npm view ${pkg} version`.quiet()
       const latest = latestResult.stdout.trim()
@@ -70,13 +79,24 @@ export async function installNpmGlobals(ctx: InstallerContext): Promise<void> {
   }
 
   if (updates.length > 0) {
-    ctx.logger.info('Installing/updating global npm packages')
-    await runCommand('npm', ['install', '-g', ...updates], {
-      dryRun: ctx.options.dryRun,
-      logger: ctx.logger
-    })
+    const nodePm = await chooseNodePmForGlobal(ctx.logger)
+    if (nodePm === 'none') {
+      ctx.logger.warn('Skipping global Node installs because pnpm is detected but not configured. Run "pnpm setup" and re-run the installer.')
+    } else if (nodePm === 'pnpm') {
+      ctx.logger.info('Installing/updating global packages via pnpm')
+      await runCommand('pnpm', ['add', '-g', ...updates], {
+        dryRun: ctx.options.dryRun,
+        logger: ctx.logger
+      })
+    } else {
+      ctx.logger.info('Installing/updating global packages via npm')
+      await runCommand('npm', ['install', '-g', ...updates], {
+        dryRun: ctx.options.dryRun,
+        logger: ctx.logger
+      })
+    }
   } else {
-    ctx.logger.ok('Global npm packages are up-to-date')
+    ctx.logger.ok('Global packages are up-to-date')
   }
 
   // Verify installations

@@ -18,7 +18,9 @@
 ```bash
 # Quick install (no global install needed)
 npx -y codex-1up install
+```
 
+```bash
 # Or install globally (recommended for repeated use)
 npm install -g codex-1up
 codex-1up install

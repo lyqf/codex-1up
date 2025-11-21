@@ -42,6 +42,7 @@ export const installCommand = defineCommand({
     'install-node': { type: 'string', description: 'nvm|brew|skip' },
     tools: { type: 'string', description: 'yes|no install/upgrade core CLI tools (rg, fd, fzf, jq, yq, difftastic)' },
     'codex-cli': { type: 'string', description: 'yes|no install/upgrade Codex CLI + ast-grep globally' },
+    'profiles-scope': { type: 'string', description: 'single|all (write one profile or all profiles)' },
     profile: { type: 'string', description: 'balanced|safe|minimal|yolo|skip (choose profile to write)' },
     'profile-mode': { type: 'string', description: 'add|overwrite (profile table merge strategy)' },
     sound: { type: 'string', description: 'Sound file, "none", or "skip" to leave unchanged' },
@@ -60,6 +61,7 @@ export const installCommand = defineCommand({
 
     const cliProfileChoice = normalizeProfileArg(args.profile)
     const cliProfileMode = normalizeProfileMode(args['profile-mode'])
+    const cliProfileScope = normalizeProfileScope(args['profiles-scope'])
     const cliToolsChoice = normalizeToolsArg(args.tools)
     const cliCodexCliChoice = normalizeYesNoArg(args['codex-cli'])
     const isUnixLike = process.platform === 'darwin' || process.platform === 'linux'
@@ -72,6 +74,7 @@ export const installCommand = defineCommand({
     const seededProfile = cliProfileChoice || (isProfile(currentProfile) ? currentProfile : undefined) || 'balanced'
     let profileChoice: 'balanced'|'safe'|'minimal'|'yolo'|'skip' = seededProfile
     let profileMode: 'add'|'overwrite' = cliProfileMode || 'add'
+    let profileScope: 'single'|'all' = cliProfileScope || 'single'
     let setDefaultProfile = true
     let installTools: 'yes'|'no' = cliToolsChoice || (isUnixLike ? 'yes' : 'no')
     let installCodexCli: 'yes'|'no' = cliCodexCliChoice || 'yes'
@@ -115,7 +118,20 @@ export const installCommand = defineCommand({
         installTools = 'no'
       }
 
-      // Profile selection + mode + default
+      // Profile scope + selection + mode + default
+      if (!cliProfileScope) {
+        const scopeResponse = await p.select({
+          message: 'Install all profiles (balanced, safe, minimal, yolo)?',
+          options: [
+            { label: 'Yes — install/update all profiles', value: 'all' },
+            { label: 'No — choose a single profile', value: 'single' }
+          ],
+          initialValue: 'all'
+        }) as 'single'|'all'
+        if (p.isCancel(scopeResponse)) return p.cancel('Install aborted')
+        profileScope = scopeResponse
+      }
+
       if (!cliProfileChoice) {
         p.note([
           'Profiles:',
@@ -131,17 +147,23 @@ export const installCommand = defineCommand({
             { label: 'Safe', value: 'safe', hint: 'on-failure approvals · workspace-write · web search off' },
             { label: 'Minimal', value: 'minimal', hint: 'lean defaults · minimal reasoning effort · web search off' },
             { label: 'YOLO', value: 'yolo', hint: 'never approvals · danger-full-access · web search on' },
-            { label: 'Skip (no profile changes)', value: 'skip' }
+            ...(profileScope === 'single' ? [{ label: 'Skip (no profile changes)', value: 'skip' as const }] : [])
           ],
           initialValue: initialProfileValue(currentProfile) as any
         }) as 'balanced'|'safe'|'minimal'|'yolo'|'skip'
         if (p.isCancel(profileResponse)) return p.cancel('Install aborted')
         profileChoice = profileResponse
+      } else if (profileScope === 'all' && profileChoice === 'skip') {
+        // scope=all requires a concrete profile (used for default selection); fall back to seeded profile
+        profileChoice = seededProfile
       }
 
-      if (profileChoice !== 'skip' && !cliProfileMode) {
+      const needMode = profileScope === 'all' || profileChoice !== 'skip'
+      if (needMode && !cliProfileMode) {
         const modeResponse = await p.select({
-          message: `How should we write profiles.${profileChoice}?`,
+          message: profileScope === 'all'
+            ? 'How should we write all profiles?'
+            : `How should we write profiles.${profileChoice}?`,
           options: [
             { label: 'Add / merge (preserve custom keys)', value: 'add' },
             { label: 'Overwrite codex profile (replace table)', value: 'overwrite' }
@@ -152,11 +174,13 @@ export const installCommand = defineCommand({
         profileMode = modeResponse
       }
 
-      if (profileChoice === 'skip') {
+      if (profileScope === 'single' && profileChoice === 'skip') {
         setDefaultProfile = false
       } else {
         const defaultResponse = await p.confirm({
-          message: `Wrote profiles.${profileChoice} to ~/.codex/config.toml (mode: ${profileMode}). Set this as the default profile?`,
+          message: profileScope === 'all'
+            ? `Wrote all profiles to ~/.codex/config.toml (mode: ${profileMode}). Set ${profileChoice} as the default profile?`
+            : `Wrote profiles.${profileChoice} to ~/.codex/config.toml (mode: ${profileMode}). Set this as the default profile?`,
           initialValue: true
         })
         if (p.isCancel(defaultResponse)) return p.cancel('Install aborted')
@@ -297,6 +321,7 @@ export const installCommand = defineCommand({
 
     const installerOptions: InstallerOptions = {
       profile: profileChoice,
+      profileScope,
       profileMode,
       setDefaultProfile,
       installCodexCli,
@@ -423,6 +448,13 @@ function normalizeProfileMode(value: unknown): ('add'|'overwrite') | undefined {
   const normalized = String(value).toLowerCase()
   if (normalized === 'add' || normalized === 'overwrite') return normalized
   throw new Error('Invalid --profile-mode value (use add|overwrite).')
+}
+
+function normalizeProfileScope(value: unknown): ('single'|'all') | undefined {
+  if (value === undefined || value === null) return undefined
+  const normalized = String(value).toLowerCase()
+  if (normalized === 'single' || normalized === 'all') return normalized
+  throw new Error('Invalid --profiles-scope value (use single|all).')
 }
 
 function normalizeToolsArg(value: unknown): ('yes'|'no') | undefined {

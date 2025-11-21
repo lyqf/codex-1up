@@ -15,7 +15,7 @@ const logger: Logger = {
 
 function makeCtx(): InstallerContext {
   const options: InstallerOptions = {
-    profile: 'balanced', profileMode: 'add', setDefaultProfile: false,
+    profile: 'balanced', profileScope: 'single', profileMode: 'add', setDefaultProfile: false,
     installCodexCli: 'yes',
     installTools: 'no',
     notify: 'yes', globalAgents: 'skip',

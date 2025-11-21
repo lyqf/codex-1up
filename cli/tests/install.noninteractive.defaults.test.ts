@@ -27,6 +27,7 @@ describe('install non-interactive defaults', () => {
     expect(captured.length).toBeGreaterThan(0)
     const opts = captured.pop()
     expect(opts.profile).toBe('balanced')
+    expect(opts.profileScope).toBe('single')
     expect(opts.profileMode).toBe('add')
     expect(opts.setDefaultProfile).toBe(true)
     expect(opts.installCodexCli).toBe('yes')

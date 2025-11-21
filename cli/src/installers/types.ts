@@ -1,6 +1,7 @@
 export type Profile = 'balanced' | 'safe' | 'minimal' | 'yolo'
 export type ProfileSelection = Profile | 'skip'
 export type ProfileMode = 'add' | 'overwrite'
+export type ProfileScope = 'single' | 'all'
 export type InstallMode = 'recommended' | 'manual'
 export type NotifyAction = 'yes' | 'no'
 export type GlobalAgentsAction = 'create-default' | 'overwrite-default' | 'append-default' | 'skip'
@@ -11,6 +12,7 @@ export type InstallCodexCliChoice = 'yes' | 'no'
 
 export interface InstallerOptions {
   profile: ProfileSelection
+  profileScope: ProfileScope
   profileMode: ProfileMode
   setDefaultProfile: boolean
   installTools: InstallToolsChoice

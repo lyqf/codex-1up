@@ -58,7 +58,7 @@ export async function writeCodexConfig(ctx: InstallerContext): Promise<void> {
   const editor = new TomlEditor(initial)
   let touched = false
 
-  touched = applyProfile(editor, ctx.options.profile, ctx.options.profileMode) || touched
+  touched = applyProfile(editor, ctx.options.profileScope, ctx.options.profile, ctx.options.profileMode) || touched
   touched = applyDefaultProfile(editor, ctx.options.profile, ctx.options.setDefaultProfile) || touched
   touched = applyNotifications(editor, ctx.options.notificationSound) || touched
 
@@ -84,21 +84,32 @@ export async function writeCodexConfig(ctx: InstallerContext): Promise<void> {
   ctx.logger.ok('Updated ~/.codex/config.toml with requested settings.')
 }
 
-function applyProfile(editor: TomlEditor, profile: InstallerContext['options']['profile'], mode: InstallerContext['options']['profileMode']): boolean {
-  if (profile === 'skip') return false
-  const defaults = PROFILE_DEFAULTS[profile]
+function applyProfile(
+  editor: TomlEditor,
+  scope: InstallerContext['options']['profileScope'],
+  profile: InstallerContext['options']['profile'],
+  mode: InstallerContext['options']['profileMode']
+): boolean {
+  if (scope === 'single' && profile === 'skip') return false
+  const targets = scope === 'all'
+    ? (Object.keys(PROFILE_DEFAULTS) as Profile[])
+    : ([profile] as Profile[])
+
   let changed = false
-  if (mode === 'overwrite') {
-    changed = editor.replaceTable(`profiles.${profile}`, defaults.root) || changed
-    changed = editor.replaceTable(`profiles.${profile}.features`, defaults.features) || changed
-  } else {
-    editor.ensureTable(`profiles.${profile}`)
-    for (const [key, value] of defaults.root) {
-      changed = editor.setKey(`profiles.${profile}`, key, value, { mode: 'if-missing' }) || changed
-    }
-    editor.ensureTable(`profiles.${profile}.features`)
-    for (const [key, value] of defaults.features) {
-      changed = editor.setKey(`profiles.${profile}.features`, key, value, { mode: 'if-missing' }) || changed
+  for (const name of targets) {
+    const defaults = PROFILE_DEFAULTS[name]
+    if (mode === 'overwrite') {
+      changed = editor.replaceTable(`profiles.${name}`, defaults.root) || changed
+      changed = editor.replaceTable(`profiles.${name}.features`, defaults.features) || changed
+    } else {
+      editor.ensureTable(`profiles.${name}`)
+      for (const [key, value] of defaults.root) {
+        changed = editor.setKey(`profiles.${name}`, key, value, { mode: 'if-missing' }) || changed
+      }
+      editor.ensureTable(`profiles.${name}.features`)
+      for (const [key, value] of defaults.features) {
+        changed = editor.setKey(`profiles.${name}.features`, key, value, { mode: 'if-missing' }) || changed
+      }
     }
   }
   return changed

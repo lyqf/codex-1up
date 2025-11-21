@@ -11,6 +11,7 @@ const repoRoot = resolve(__dirname, '../../')
 function makeOptions(overrides: Partial<InstallerOptions> = {}): InstallerOptions {
   return {
     profile: 'balanced',
+    profileScope: 'single',
     profileMode: 'add',
     setDefaultProfile: false,
     installCodexCli: 'yes',
@@ -84,6 +85,7 @@ describe('writeCodexConfig targeted patches', () => {
     const initial = `model = "gpt"\nprofile = "minimal"\n`
     const { ctx, cfgPath, cleanup } = await setupContext(initial)
     ctx.options.profile = 'yolo'
+    ctx.options.profileScope = 'single'
     ctx.options.profileMode = 'add'
     ctx.options.setDefaultProfile = true
     await writeCodexConfig(ctx)

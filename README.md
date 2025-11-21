@@ -31,6 +31,8 @@ codex-1up install
 - Open a new terminal session (or source your shell rc)
 - Run `codex` to sign in and start using the agent! 🎉
 
+> **⚠️ Security Warning:** `codex-1up` helps you set up Codex CLI, but **use caution with the `yolo` profile**. The `yolo` profile grants full system access and can modify any file on your computer. If you're unsure what you're doing, use the default `balanced` profile or the standard Codex install. Always review changes before approving them.
+
 ### What gets installed
 
 | Component                 | Why it matters                                                                          |
@@ -54,7 +56,7 @@ codex-1up install
 | balanced (default) | Approvals on-request; workspace-write sandbox with network access inside workspace. |
 | safe | Approvals on-failure; workspace-write sandbox; conservative. |
 | minimal | Medium reasoning effort; web search off. |
-| yolo | Never ask for approvals; danger-full-access (only trusted environments). |
+| yolo | Never ask for approvals; danger-full-access (only trusted environments). ⚠️ **Warning:** Grants full system access—use with extreme caution. |
 
 Switch profiles anytime: `codex --profile <name>` for a session, or `codex-1up config set-profile <name>` to persist.
 

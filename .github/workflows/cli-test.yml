@@ -75,7 +75,15 @@ jobs:
         working-directory: cli
         run: pnpm exec tsc --noEmit
 
+      - name: Run tests (Node 18.x, no coverage)
+        if: matrix.node-version == '18.x'
+        working-directory: cli
+        run: pnpm test
+        env:
+          CI: true
+
       - name: Run tests with coverage
+        if: matrix.node-version != '18.x'
         working-directory: cli
         run: pnpm run coverage
         env:

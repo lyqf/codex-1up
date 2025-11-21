@@ -1,0 +1,37 @@
+name: Publish PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  publish-preview:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.17.1
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: cli/pnpm-lock.yaml
+          
+      - name: Install dependencies
+        working-directory: cli
+        run: pnpm install --frozen-lockfile
+        
+      - name: Build package
+        working-directory: cli
+        run: pnpm run build
+        
+      - name: Publish Preview Package
+        working-directory: cli
+        run: npx pkg-pr-new publish .

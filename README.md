@@ -16,7 +16,10 @@
 ## Quick start
 
 ```bash
-# Install globally (recommended)
+# Quick install (no global install needed)
+npx -y codex-1up install
+
+# Or install globally (recommended for repeated use)
 npm install -g codex-1up
 codex-1up install
 ```
@@ -36,6 +39,7 @@ codex-1up install
 | **ripgrep (rg)**          | Fast text search across code.                                                           |
 | **fzf**                   | Fuzzy‑finder to select among many matches.                                              |
 | **jq** / **yq**           | Reliable JSON/YAML processing on the command line.                                      |
+| **difftastic**            | Fast syntax‑aware diff tool for git.                                                   |
 | **\~/.codex/config.toml** | Single template with multiple profiles. Active profile is chosen during install (default: `balanced`). See [Codex config reference](https://github.com/openai/codex/blob/main/docs/config.md). |
 | **AGENTS.md**             | Minimal per‑repo rubric; installer can also create global `~/.codex/AGENTS.md`.         |
 | **\~/.codex/notify.sh**   | Notification hook script with customizable sounds for Codex events (default: `noti_1.wav`). |
@@ -47,7 +51,7 @@ codex-1up install
 | --- | --- |
 | balanced (default) | Approvals on-request; workspace-write sandbox with network access inside workspace. |
 | safe | Approvals on-failure; workspace-write sandbox; conservative. |
-| minimal | Minimal reasoning effort; concise summaries; web search off. |
+| minimal | Medium reasoning effort; web search off. |
 | yolo | Never ask for approvals; danger-full-access (only trusted environments). |
 
 Switch profiles anytime: `codex --profile <name>` for a session, or `codex-1up config set-profile <name>` to persist.
@@ -82,17 +86,21 @@ See memory behavior with AGENTS.md in the official docs: [Memory with AGENTS.md]
 
 ### Common flags
 
-- `--shell auto|zsh|bash|fish`
+- `--shell auto|zsh|bash|fish` : shell to configure aliases for
 - `--vscode EXT_ID`        : install a VS Code extension (e.g. `openai.codex`)
 - `--agents-md [PATH]`     : write a starter `AGENTS.md` to PATH (default: `$PWD/AGENTS.md`)
 - `--no-vscode`            : skip VS Code extension checks
 - `--install-node nvm|brew|skip` : how to install Node.js if missing (default: `nvm`)
+- `--codex-cli yes|no`     : install/upgrade Codex CLI (default: `yes` on macOS/Linux)
+- `--tools yes|no`        : install/upgrade tools: rg, fd, fzf, jq, yq, difftastic, ast-grep (default: `yes` on macOS/Linux)
+- `--profile balanced|safe|minimal|yolo|skip` : profile to write (default: `balanced`)
+- `--profile-mode add|overwrite` : profile merge strategy (default: `add`)
 
 ### Advanced / CI flags
 
 - `--dry-run`              : print what would happen, change nothing
 - `--skip-confirmation`    : suppress interactive prompts
-- `--yes`                  : non-interactive, accept safe defaults (CI). Most users don’t need this.
+- `--yes`                  : non-interactive, accept safe defaults (CI). Most users don't need this.
 
 ## Develop locally (from source)
 

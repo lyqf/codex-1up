@@ -12,25 +12,37 @@ const PROFILE_DEFAULTS: Record<Profile, ProfileDefaults> = {
   balanced: {
     root: [
       ['approval_policy', '"on-request"'],
-      ['sandbox_mode', '"workspace-write"']
+      ['sandbox_mode', '"workspace-write"'],
+      ['model', '"gpt-5.1-codex-max"'],
+      ['model_reasoning_effort', '"medium"']
     ],
     features: [['web_search_request', 'true']]
   },
   safe: {
     root: [
       ['approval_policy', '"on-failure"'],
-      ['sandbox_mode', '"workspace-write"']
+      ['sandbox_mode', '"workspace-write"'],
+      ['model', '"gpt-5.1-codex-max"'],
+      ['model_reasoning_effort', '"medium"']
     ],
     features: [['web_search_request', 'false']]
   },
   minimal: {
-    root: [['model_reasoning_effort', '"minimal"']],
+    root: [
+      ['model', '"gpt-5.1-codex-max"'],
+      ['model_reasoning_effort', '"medium"']
+    ],
     features: [['web_search_request', 'false']]
   },
   yolo: {
     root: [
       ['approval_policy', '"never"'],
-      ['sandbox_mode', '"danger-full-access"']
+      ['sandbox_mode', '"danger-full-access"'],
+      ['model', '"gpt-5.1-codex-max"'],
+      ['model_reasoning_effort', '"medium"'],
+      ['model_reasoning_summary', '"detailed"'],
+      ['model_verbosity', '"high"'],
+      ['tool_output_token_limit', '25000']
     ],
     features: [['web_search_request', 'true']]
   }

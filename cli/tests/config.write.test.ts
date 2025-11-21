@@ -26,7 +26,9 @@ describe('config init/write', () => {
     await runCommand(root, { rawArgs: ['config', 'init', '--force'] })
     const data = await fs.readFile(CFG, 'utf8')
     // Ensure minimal profile does not force an unsupported summary value
-    expect(data).not.toMatch(/\[profiles\.minimal\][\s\S]*model_reasoning_summary\s*=/)
+    // Match from [profiles.minimal] up to the next profile or end of file, but not beyond
+    const minimalSection = data.match(/\[profiles\.minimal\][\s\S]*?(?=\[profiles\.|$)/)?.[0] || ''
+    expect(minimalSection).not.toMatch(/model_reasoning_summary\s*=/)
   })
 
   it('enables reasoning steps in TUI by default', async () => {

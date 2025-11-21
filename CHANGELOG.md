@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+- Updated all profiles (balanced, safe, minimal, yolo) to use `gpt-5.1-codex-max` model with `medium` reasoning effort by default
+- Enhanced `yolo` profile with high-performance settings:
+  - `model_reasoning_summary = "detailed"`
+  - `model_verbosity = "high"`
+  - `tool_output_token_limit = 25000` (increased from default 2560)
+- Updated root-level default model from `gpt-5` to `gpt-5.1-codex-max`
 
 ## [0.2.1] - 2025-11-18
 

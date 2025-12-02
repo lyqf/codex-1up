@@ -43,7 +43,8 @@ describe('custom sound absolute path', () => {
     await ensureNotifyHook(ctx)
     await setupNotificationSound(ctx)
     const notifyTxt = await fs.readFile(NOTIFY, 'utf8')
-    expect(notifyTxt).toMatch(new RegExp(`^DEFAULT_CODEX_SOUND=\"${CUSTOM_WAV.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&')}\"`, 'm'))
+    // Use toContain for cross-platform compatibility (Windows uses backslashes)
+    expect(notifyTxt).toContain(`DEFAULT_CODEX_SOUND="${CUSTOM_WAV}`)
   })
 
   it('does not write any blocks to rc files (sound config lives in notify.sh only)', async () => {

@@ -9,12 +9,7 @@ All notable changes to this project will be documented in this file.
   - Removed shell rc file manipulation (no more writes to `.bashrc`/`.zshrc`/`config.fish`)
   - Sound path is set directly via `DEFAULT_CODEX_SOUND` in `notify.sh`
   - Users can still override via `CODEX_CUSTOM_SOUND` env var if needed
-
-### Fixed
-- Fixed shell rc block markers causing syntax errors in bash/zsh
-  - Legacy `>>> codex-1up >>>` / `<<< codex-1up <<<` markers were invalid shell syntax
-  - Re-running the installer automatically cleans up these legacy blocks from rc files
-  - Updated `uninstall.sh` and `doctor.sh` to detect and clean both legacy and commented marker formats
+  - Legacy `codex-1up` rc markers are left untouched; doctor surfaces them for manual cleanup
 
 ## [0.3.2] - 2025-11-25
 

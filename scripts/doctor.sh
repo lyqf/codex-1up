@@ -43,7 +43,7 @@ for rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.config/fish/config.fish"; do
     if grep -q "# >>> codex-1up >>>" "$rc"; then
       echo "Found codex-1up block in $rc"
     elif grep -q ">>> codex-1up >>>" "$rc"; then
-      echo "Found codex-1up block in $rc (legacy format - re-run installer to fix)"
+      echo "Found codex-1up block in $rc (legacy format - remove manually)"
     fi
   fi
 done

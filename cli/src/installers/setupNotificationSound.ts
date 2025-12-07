@@ -7,9 +7,6 @@ export async function setupNotificationSound(ctx: InstallerContext): Promise<voi
   const targetDir = path.join(ctx.homeDir, '.codex', 'sounds')
   await fs.ensureDir(targetDir)
 
-  // Clean up any legacy rc blocks from older versions (they caused shell syntax errors)
-  await cleanupLegacyRcBlocks(ctx)
-
   const selected = ctx.options.notificationSound
   if (selected === 'none') {
     // Disable sound by clearing DEFAULT_CODEX_SOUND in notify.sh
@@ -54,50 +51,4 @@ export async function setupNotificationSound(ctx: InstallerContext): Promise<voi
     }
   }
   ctx.logger.ok('Notification sound configured')
-}
-
-/**
- * Remove legacy codex-1up blocks from shell rc files.
- * Older versions wrote invalid `>>> codex-1up >>>` markers that caused shell syntax errors.
- * This cleanup runs automatically so users don't need to manually fix their rc files.
- */
-async function cleanupLegacyRcBlocks(ctx: InstallerContext): Promise<void> {
-  const PROJECT = 'codex-1up'
-  const rcFiles = [
-    path.join(ctx.homeDir, '.bashrc'),
-    path.join(ctx.homeDir, '.zshrc'),
-    path.join(ctx.homeDir, '.config', 'fish', 'config.fish')
-  ]
-
-  for (const rcFile of rcFiles) {
-    if (!(await fs.pathExists(rcFile))) continue
-
-    const original = await fs.readFile(rcFile, 'utf8')
-    let cleaned = original
-
-    // Remove commented markers (newer format, but no longer needed)
-    const commentedStart = `# >>> ${PROJECT} >>>`
-    const commentedEnd = `# <<< ${PROJECT} <<<`
-    const commentedRegex = new RegExp(`${escapeRegex(commentedStart)}[\\s\\S]*?${escapeRegex(commentedEnd)}\\n?`, 'g')
-    cleaned = cleaned.replace(commentedRegex, '')
-
-    // Remove legacy bare markers (invalid shell syntax)
-    const legacyStart = `>>> ${PROJECT} >>>`
-    const legacyEnd = `<<< ${PROJECT} <<<`
-    const legacyRegex = new RegExp(`${escapeRegex(legacyStart)}[\\s\\S]*?${escapeRegex(legacyEnd)}\\n?`, 'g')
-    cleaned = cleaned.replace(legacyRegex, '')
-
-    if (cleaned !== original) {
-      if (ctx.options.dryRun) {
-        ctx.logger.log(`[dry-run] cleanup legacy codex-1up block from ${rcFile}`)
-      } else {
-        await fs.writeFile(rcFile, cleaned, 'utf8')
-        ctx.logger.ok(`Cleaned up legacy codex-1up block from ${rcFile}`)
-      }
-    }
-  }
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

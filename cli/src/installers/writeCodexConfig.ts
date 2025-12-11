@@ -13,7 +13,7 @@ const PROFILE_DEFAULTS: Record<Profile, ProfileDefaults> = {
     root: [
       ['approval_policy', '"on-request"'],
       ['sandbox_mode', '"workspace-write"'],
-      ['model', '"gpt-5.1-codex"'],
+      ['model', '"gpt-5.2"'],
       ['model_reasoning_effort', '"medium"'],
       ['model_reasoning_summary', '"concise"']
     ],
@@ -23,7 +23,7 @@ const PROFILE_DEFAULTS: Record<Profile, ProfileDefaults> = {
     root: [
       ['approval_policy', '"on-failure"'],
       ['sandbox_mode', '"read-only"'],
-      ['model', '"gpt-5.1-codex"'],
+      ['model', '"gpt-5.2"'],
       ['model_reasoning_effort', '"medium"'],
       ['model_reasoning_summary', '"concise"']
     ],
@@ -33,7 +33,7 @@ const PROFILE_DEFAULTS: Record<Profile, ProfileDefaults> = {
     root: [
       ['approval_policy', '"never"'],
       ['sandbox_mode', '"danger-full-access"'],
-      ['model', '"gpt-5.1-codex-max"'],
+      ['model', '"gpt-5.2"'],
       ['model_reasoning_effort', '"high"'],
       ['model_reasoning_summary', '"detailed"'],
       ['tool_output_token_limit', '25000'],

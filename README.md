@@ -53,9 +53,9 @@ codex-1up install
 
 | Profile | Model | Sandbox | Description |
 | --- | --- | --- | --- |
-| balanced (default) | gpt-5.1-codex | workspace-write | Approvals on-request; web search on. Standard for everyday use. |
-| safe | gpt-5.1-codex | read-only | Approvals on-failure; web search off. Maximum security for critical repos. |
-| yolo | gpt-5.1-codex-max | danger-full-access | Never ask for approvals; high reasoning; optimized for long autonomous sessions. ⚠️ **Warning:** Grants full system access. |
+| balanced (default) | gpt-5.2 | workspace-write | Approvals on-request; web search on. Standard for everyday use. |
+| safe | gpt-5.2 | read-only | Approvals on-failure; web search off. Maximum security for critical repos. |
+| yolo | gpt-5.2 | danger-full-access | Never ask for approvals; high reasoning; optimized for long autonomous sessions. ⚠️ **Warning:** Grants full system access. |
 
 Switch profiles anytime: `codex --profile <name>` for a session, or `codex-1up config set-profile <name>` to persist.
 

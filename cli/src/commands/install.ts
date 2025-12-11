@@ -139,14 +139,14 @@ export const installCommand = defineCommand({
           'Profiles:',
           '  • Balanced: on-request approvals, workspace-write sandbox, web search on.',
           '  • Safe: on-failure approvals, read-only sandbox, web search off.',
-          '  • YOLO: never approvals, danger-full-access, gpt-5.1-codex-max, high reasoning.'
+          '  • YOLO: never approvals, danger-full-access, gpt-5.2, high reasoning.'
         ].join('\n'))
         const profileResponse = await p.select({
           message: 'Choose a Codex profile to install',
           options: [
             { label: 'Balanced (recommended)', value: 'balanced', hint: 'on-request approvals · workspace-write · web search on' },
             { label: 'Safe', value: 'safe', hint: 'on-failure approvals · read-only · web search off' },
-            { label: 'YOLO', value: 'yolo', hint: 'never approvals · danger-full-access · gpt-5.1-codex-max' },
+            { label: 'YOLO', value: 'yolo', hint: 'never approvals · danger-full-access · gpt-5.2' },
             ...(profileScope === 'single' ? [{ label: 'Skip (no profile changes)', value: 'skip' as const }] : [])
           ],
           initialValue: initialProfileValue(currentProfile) as any

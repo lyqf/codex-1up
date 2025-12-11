@@ -179,8 +179,10 @@ async function publishPackages(
 		run("pnpm i --frozen-lockfile=false", pkgPath);
 		run("pnpm build", pkgPath);
 		const accessFlag = target.access === "public" ? " --access public" : "";
+		const otp = process.env.NPM_OTP;
+		const otpFlag = otp ? ` --otp ${otp}` : "";
 		console.log(`Publishing ${target.name}@${newVersion}...`);
-		run(`pnpm publish --no-git-checks${accessFlag}`, pkgPath);
+		run(`pnpm publish --no-git-checks${accessFlag}${otpFlag}`, pkgPath);
 
 		// Clean up ephemeral copies so repo doesn't keep duplicates
 			try {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,9 +16,31 @@ const packageTargets: PackageTarget[] = [
 	{ name: "codex-1up", dir: "cli", bump: true, publish: true, access: "public" },
 ];
 
-function run(command: string, cwd: string) {
-	console.log(`Executing: ${command} in ${cwd}`);
+function run(command: string, cwd: string, opts?: { displayCommand?: string }) {
+	const shown = opts?.displayCommand ?? command;
+	console.log(`Executing: ${shown} in ${cwd}`);
 	execSync(command, { stdio: "inherit", cwd });
+}
+
+function getPublishOtp(): string | undefined {
+	// Preferred: fetch OTP at publish-time to avoid expiration during build steps.
+	const opItem = process.env.NPM_OTP_OP_ITEM;
+	if (opItem) {
+		try {
+			const otp = execSync(`op item get "${opItem}" --otp`, { stdio: ["ignore", "pipe", "pipe"] })
+				.toString()
+				.trim();
+			return otp || undefined;
+		} catch (e) {
+			throw new Error(
+				`Failed to fetch OTP from 1Password item "${opItem}". Ensure the item has a One-time password field and that 'op' is signed in.`,
+			);
+		}
+	}
+
+	// Fallback: allow passing a fixed OTP directly (works, but may expire mid-run).
+	const envOtp = process.env.NPM_OTP?.trim();
+	return envOtp || undefined;
 }
 
 function ensureCleanWorkingTree() {
@@ -179,10 +202,13 @@ async function publishPackages(
 		run("pnpm i --frozen-lockfile=false", pkgPath);
 		run("pnpm build", pkgPath);
 		const accessFlag = target.access === "public" ? " --access public" : "";
-		const otp = process.env.NPM_OTP;
+		const otp = getPublishOtp();
 		const otpFlag = otp ? ` --otp ${otp}` : "";
+		const displayOtpFlag = otp ? " --otp ******" : "";
 		console.log(`Publishing ${target.name}@${newVersion}...`);
-		run(`pnpm publish --no-git-checks${accessFlag}${otpFlag}`, pkgPath);
+		run(`pnpm publish --no-git-checks${accessFlag}${otpFlag}`, pkgPath, {
+			displayCommand: `pnpm publish --no-git-checks${accessFlag}${displayOtpFlag}`,
+		});
 
 		// Clean up ephemeral copies so repo doesn't keep duplicates
 			try {

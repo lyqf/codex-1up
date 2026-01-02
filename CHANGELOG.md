@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-01-02
+
 ### Added
 - New `codex-1up update` command to self-update the CLI.
 - New `codex-1up tools` and `codex-1up skills` commands for managing tool installs and bundled Agent Skills.

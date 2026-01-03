@@ -4,6 +4,7 @@ import { needCmd, runCommand } from './utils.js'
 import fs from 'fs-extra'
 import * as path from 'path'
 import * as os from 'os'
+import * as p from '@clack/prompts'
 
 export async function ensureNode(ctx: InstallerContext): Promise<void> {
   const hasNode = await needCmd('node')
@@ -47,8 +48,23 @@ async function installNodeViaNvm(ctx: InstallerContext): Promise<void> {
     return
   }
 
+  const interactive =
+    process.stdout.isTTY &&
+    !ctx.options.dryRun &&
+    !ctx.options.skipConfirmation &&
+    !ctx.options.assumeYes
+
   const nvmDir = path.join(ctx.homeDir, '.nvm')
   if (!(await fs.pathExists(nvmDir))) {
+    if (interactive) {
+      const answer = await p.confirm({
+        message: 'This will download and run the nvm installer script (from GitHub) and then install Node LTS. Continue?',
+        initialValue: true
+      })
+      if (p.isCancel(answer) || !answer) {
+        throw new Error('Node installation aborted by user')
+      }
+    }
     ctx.logger.info('Installing nvm...')
     await $`bash -c "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash"`
   }
@@ -62,6 +78,12 @@ async function installNodeViaNvm(ctx: InstallerContext): Promise<void> {
 async function installNodeViaBrew(ctx: InstallerContext): Promise<void> {
   ctx.logger.info('Installing Node.js via Homebrew')
 
+  const interactive =
+    process.stdout.isTTY &&
+    !ctx.options.dryRun &&
+    !ctx.options.skipConfirmation &&
+    !ctx.options.assumeYes
+
   // Ensure brew is installed first
   if (!(await needCmd('brew'))) {
     if (os.platform() === 'darwin') {
@@ -69,6 +91,15 @@ async function installNodeViaBrew(ctx: InstallerContext): Promise<void> {
       if (ctx.options.dryRun) {
         ctx.logger.log('[dry-run] install Homebrew')
         return
+      }
+      if (interactive) {
+        const answer = await p.confirm({
+          message: 'This will download and run the official Homebrew installer script (from GitHub). Continue?',
+          initialValue: true
+        })
+        if (p.isCancel(answer) || !answer) {
+          throw new Error('Homebrew installation aborted by user')
+        }
       }
       await $`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
       // Add brew to PATH for current session

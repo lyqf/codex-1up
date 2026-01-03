@@ -31,6 +31,7 @@ Publishes preview packages for pull requests using `pkg-pr-new`.
 **Features:**
 - Builds the CLI package
 - Publishes preview version for testing
+- Locked down to run only for non-fork PRs, with minimal permissions and a pinned tool version
 
 ## Workflow Configuration
 

@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { findRepoRoot } from '../lib/repoRoot.js'
-import { installSkills, listBundled, listInstalled, removeSkill } from '../actions/skills.js'
+import { installSkills, listBundled, listInstalled } from '../actions/skills.js'
 
 export const skillsCommand = defineCommand({
   meta: { name: 'skills', description: 'Manage bundled Agent Skills' },
@@ -55,18 +55,6 @@ export const skillsCommand = defineCommand({
           throw new Error(`Unknown skill(s): ${unknown.join(', ')}. Available: ${available}`)
         }
         await installSkills('select', requested, { dryRun: Boolean(args['dry-run']) })
-      }
-    }),
-    remove: defineCommand({
-      meta: { name: 'remove', description: 'Remove an installed skill (backup created)' },
-      args: {
-        name: { type: 'positional', required: true, description: 'Skill id' },
-        'dry-run': { type: 'boolean', description: 'Print actions without making changes' }
-      },
-      async run({ args }) {
-        const name = String(args.name || '').trim()
-        if (!name) throw new Error('Skill id required')
-        await removeSkill(name, { dryRun: Boolean(args['dry-run']) })
       }
     }),
     refresh: defineCommand({

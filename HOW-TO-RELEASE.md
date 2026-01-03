@@ -34,6 +34,7 @@ This project ships via the Node script at `scripts/release.ts`. The script bumps
   - Environment: leave blank unless you use GitHub Environments
 - GitHub Actions will mint short-lived OIDC credentials at publish time; no stored tokens.
 - The workflow pins npm CLI `11.5.1` to satisfy Trusted Publishing requirements.
+- Note: This workflow runs on **GitHub Release published** (draft releases do not publish to npm).
 
 ## Homebrew tap update (automatic)
 - A GitHub Actions workflow (`.github/workflows/homebrew-release.yml`) updates `regenrek/homebrew-tap` on each published GitHub Release.
@@ -43,6 +44,7 @@ This project ships via the Node script at `scripts/release.ts`. The script bumps
   - Pulls the npm tarball from `registry.npmjs.org`
   - Computes the sha256
   - Updates `Formula/codex-1up.rb` in the tap and pushes
+- Note: This job may fail if it runs before the npm tarball is available (e.g., 404). If that happens, rerun the **Homebrew Tap** workflow after the **npm Release** workflow succeeds.
 
 ## Sanity Checks (optional but recommended)
 - Build and pack locally:
@@ -75,6 +77,11 @@ This project ships via the Node script at `scripts/release.ts`. The script bumps
 - Create a follow-up patch release that fixes the issue.
 
 ## Troubleshooting
-- `npm ERR! code E403` or auth failures: run `npm login` and retry.
+- `npm Release` fails (OIDC / permissions / E403):
+  - Check the `npm Release` workflow run logs in GitHub Actions.
+  - Verify npm package settings → **Trusted Publishers** points to this repo and `npm-release.yml` (and the workflow has `permissions: id-token: write`).
+  - Confirm the GitHub Release is **published** (not draft).
+  - If needed, manually run the workflow via `workflow_dispatch` with `tag=vX.Y.Z` (and `prerelease=true` to publish to `next`).
+- `Homebrew Tap` fails with a tarball download error (often 404): rerun the `homebrew-release.yml` workflow after the npm publish completes; also confirm `HOMEBREW_TAP_GITHUB_TOKEN` exists and has access to `regenrek/homebrew-tap`.
 - `gh` failures: `gh auth status`; ensure `repo` scope exists.
 - Tag push rejected: pull/rebase or fast-forward `main`, then rerun.

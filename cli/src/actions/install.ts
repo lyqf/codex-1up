@@ -56,7 +56,7 @@ export async function printPostInstallSummary(): Promise<void> {
   lines.push('  - Switch profile for a session:  codex --profile <name>')
   lines.push('  - List available profiles:       codex-1up config profiles')
   lines.push('  - Persist active profile:        codex-1up config set-profile <name>')
-  lines.push('  - Write AGENTS.md to a repo:     codex-1up agents --path . --template default')
+  lines.push('  - Write AGENTS.md to a repo:     codex-1up agents --path .')
   lines.push('')
   process.stdout.write(lines.join('\n') + '\n')
 }

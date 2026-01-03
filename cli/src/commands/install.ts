@@ -9,7 +9,7 @@ import { listBundledSkills } from '../actions/skills.js'
 import { isToolId, listToolDefinitions } from '../actions/tools.js'
 import type { InstallerOptions, ToolId } from '../installers/types.js'
 import { findRepoRoot } from '../lib/repoRoot.js'
-import { PACKAGE_DESCRIPTION, PACKAGE_NAME, PACKAGE_VERSION } from '../lib/package.js'
+import { PACKAGE_VERSION } from '../lib/package.js'
 import { runInstallWizard } from '../flows/installWizard.js'
 
 const repoRoot = findRepoRoot()
@@ -238,7 +238,7 @@ export const installCommand = defineCommand({
       skills: skillsMode,
       skillsSelected,
       mode: 'manual',
-      installNode: (args['install-node'] as 'nvm'|'brew'|'skip') || 'nvm',
+      installNode: (args['install-node'] as 'nvm'|'brew'|'skip') || 'skip',
       shell: String(args.shell || 'auto'),
       vscodeId: hasNoVscodeFlag ? undefined : (args.vscode ? String(args.vscode) : undefined),
       noVscode: hasNoVscodeFlag || args['no-vscode'] || false,

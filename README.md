@@ -106,7 +106,6 @@ codex-1up tools doctor
 codex-1up skills list
 codex-1up skills install debug-lldb
 codex-1up skills install all
-codex-1up skills remove debug-lldb
 codex-1up skills refresh
 
 # Configuration helpers
@@ -136,7 +135,7 @@ codex-1up config set-profile balanced
 - `--vscode EXT_ID`        : install a VS Code extension (e.g. `openai.codex`)
 - `--agents-md [PATH]`     : write a starter `AGENTS.md` to PATH (default: `$PWD/AGENTS.md`)
 - `--no-vscode`            : skip VS Code extension checks
-- `--install-node nvm|brew|skip` : how to install Node.js if missing (default: `nvm`)
+- `--install-node nvm|brew|skip` : how to install Node.js if missing (default: `skip`)
 - `--codex-cli yes|no`     : install/upgrade Codex CLI (default: `yes` on macOS/Linux)
 - `--tools all|skip|<comma-separated>` : install/update tools: rg, fd, fzf, jq, yq, ast-grep, bat, git, git-delta, gh (default: `all` on macOS/Linux)
 - `--profile balanced|safe|yolo|skip` : profile to write (default: `balanced`)

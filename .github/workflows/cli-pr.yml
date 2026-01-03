@@ -17,7 +17,7 @@ jobs:
   quick-check:
     name: Quick Checks
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -52,6 +52,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: cli
+        shell: bash
         run: |
           if [ -f "pnpm-lock.yaml" ]; then
             pnpm install --frozen-lockfile
@@ -91,36 +92,36 @@ jobs:
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
               });
-              
-              const botComment = comments.find(comment => 
-                comment.user.type === 'Bot' && 
+
+              const botComment = comments.find(comment =>
+                comment.user.type === 'Bot' &&
                 comment.body.includes('CLI Test Results')
               );
-              
+
               const getStatusEmoji = (outcome) => {
                 return outcome === 'success' ? '✅' : '❌';
               };
-              
+
               const typecheckStatus = '${{ steps.typecheck.outcome }}';
               const testStatus = '${{ steps.test.outcome }}';
               const buildStatus = '${{ steps.build.outcome }}';
-              
-              const allPassed = typecheckStatus === 'success' && 
-                               testStatus === 'success' && 
+
+              const allPassed = typecheckStatus === 'success' &&
+                               testStatus === 'success' &&
                                buildStatus === 'success';
-              
+
               const body = `## 🧪 CLI Test Results
-              
+
               ${allPassed ? '✅ **All checks passed!**' : '❌ **Some checks failed**'}
-              
+
               | Check | Status |
               |-------|--------|
               | Type Check | ${getStatusEmoji(typecheckStatus)} ${typecheckStatus} |
               | Tests | ${getStatusEmoji(testStatus)} ${testStatus} |
               | Build | ${getStatusEmoji(buildStatus)} ${buildStatus} |
-              
+
               [View full logs](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
-              
+
               if (botComment) {
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
@@ -143,10 +144,11 @@ jobs:
 
       - name: Create job summary
         if: always()
+        shell: bash
         run: |
           echo "## 🧪 CLI Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ steps.typecheck.outcome }}" == "success" && \
                 "${{ steps.test.outcome }}" == "success" && \
                 "${{ steps.build.outcome }}" == "success" ]]; then
@@ -154,25 +156,36 @@ jobs:
           else
             echo "❌ **Some checks failed**" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ steps.typecheck.outcome }}" == "success" ]]; then
             echo "| Type Check | ✅ success |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Type Check | ❌ ${{ steps.typecheck.outcome }} |" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [[ "${{ steps.test.outcome }}" == "success" ]]; then
             echo "| Tests | ✅ success |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Tests | ❌ ${{ steps.test.outcome }} |" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [[ "${{ steps.build.outcome }}" == "success" ]]; then
             echo "| Build | ✅ success |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Build | ❌ ${{ steps.build.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail job if checks failed
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.typecheck.outcome }}" != "success" || \
+                "${{ steps.test.outcome }}" != "success" || \
+                "${{ steps.build.outcome }}" != "success" ]]; then
+            echo "One or more CLI checks failed." >&2
+            exit 1
           fi

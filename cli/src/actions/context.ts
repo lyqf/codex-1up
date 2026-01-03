@@ -38,6 +38,11 @@ export async function createActionContext(
   const homeDir = os.homedir()
   const logDir = path.join(homeDir, '.codex-1up')
   await fs.mkdir(logDir, { recursive: true })
+  try {
+    await fs.chmod(logDir, 0o700)
+  } catch {
+    // best-effort on platforms without POSIX perms
+  }
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
   const logFile = path.join(logDir, `command-${timestamp}.log`)
   const logger = createLogger(logFile)

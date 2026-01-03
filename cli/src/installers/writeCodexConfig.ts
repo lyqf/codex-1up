@@ -76,7 +76,9 @@ export async function writeCodexConfig(ctx: InstallerContext): Promise<void> {
   const finalContent = editor.content()
   if (ctx.options.dryRun) {
     ctx.logger.log(`[dry-run] write ${cfgPath}`)
-    ctx.logger.log(finalContent)
+    // Avoid logging the full config content, which may contain sensitive values.
+    ctx.logger.log('[dry-run] config content omitted')
+    ctx.logger.log(`[dry-run] would write ${finalContent.length} bytes`)
     return
   }
 

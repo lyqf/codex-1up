@@ -4,7 +4,7 @@ import { createWriteStream } from 'fs'
 export function createLogger(logFile: string): Logger {
   let logStream: ReturnType<typeof createWriteStream> | null = null
   try {
-    logStream = createWriteStream(logFile, { flags: 'a' })
+    logStream = createWriteStream(logFile, { flags: 'a', mode: 0o600 })
   } catch (error) {
     void error
     // Fallback to stdout only if file write fails

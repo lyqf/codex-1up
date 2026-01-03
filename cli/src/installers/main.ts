@@ -21,6 +21,11 @@ export async function runInstaller(options: InstallerOptions, rootDir: string): 
   const homeDir = os.homedir()
   const logDir = path.join(homeDir, `.${PROJECT}`)
   await fs.ensureDir(logDir)
+  try {
+    await fs.chmod(logDir, 0o700)
+  } catch {
+    // best-effort on platforms without POSIX perms
+  }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
   const logFile = path.join(logDir, `install-${timestamp}.log`)

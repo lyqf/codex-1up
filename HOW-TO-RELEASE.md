@@ -38,13 +38,16 @@ This project ships via the Node script at `scripts/release.ts`. The script bumps
 
 ## Homebrew tap update (automatic)
 - A GitHub Actions workflow (`.github/workflows/homebrew-release.yml`) updates `regenrek/homebrew-tap` on each published GitHub Release.
-- Required secret: `HOMEBREW_TAP_GITHUB_TOKEN` with `repo` access to `regenrek/homebrew-tap`.
+- Required secrets:
+  - `HOMEBREW_TAP_APP_ID` (GitHub App ID)
+  - `HOMEBREW_TAP_APP_PRIVATE_KEY` (GitHub App private key PEM)
+- The GitHub App must be installed on `regenrek/homebrew-tap` with **Contents: read/write**.
 - The workflow:
   - Resolves the release tag version
   - Pulls the npm tarball from `registry.npmjs.org`
   - Computes the sha256
   - Updates `Formula/codex-1up.rb` in the tap and pushes
-- Note: This job may fail if it runs before the npm tarball is available (e.g., 404). If that happens, rerun the **Homebrew Tap** workflow after the **npm Release** workflow succeeds.
+- Note: The job waits for the npm tarball to be available, but if registry propagation is slow you can rerun the **Homebrew Tap** workflow.
 
 ## Sanity Checks (optional but recommended)
 - Build and pack locally:
@@ -82,6 +85,7 @@ This project ships via the Node script at `scripts/release.ts`. The script bumps
   - Verify npm package settings → **Trusted Publishers** points to this repo and `npm-release.yml` (and the workflow has `permissions: id-token: write`).
   - Confirm the GitHub Release is **published** (not draft).
   - If needed, manually run the workflow via `workflow_dispatch` with `tag=vX.Y.Z` (and `prerelease=true` to publish to `next`).
-- `Homebrew Tap` fails with a tarball download error (often 404): rerun the `homebrew-release.yml` workflow after the npm publish completes; also confirm `HOMEBREW_TAP_GITHUB_TOKEN` exists and has access to `regenrek/homebrew-tap`.
+- `Homebrew Tap` fails with a tarball download error (often 404): rerun the `homebrew-release.yml` workflow after the npm publish completes.
+- `Homebrew Tap` fails to push (403): confirm `HOMEBREW_TAP_APP_ID` and `HOMEBREW_TAP_APP_PRIVATE_KEY` are set in this repo, and the GitHub App is installed on `regenrek/homebrew-tap` with Contents write access.
 - `gh` failures: `gh auth status`; ensure `repo` scope exists.
 - Tag push rejected: pull/rebase or fast-forward `main`, then rerun.

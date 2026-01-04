@@ -78,12 +78,21 @@ jobs:
             fi
           done
 
+      - name: Create Homebrew tap token (GitHub App)
+        id: tap-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HOMEBREW_TAP_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
+          owner: regenrek
+          repositories: homebrew-tap
+
       - name: Checkout Homebrew tap
         uses: actions/checkout@v4
         with:
           repository: regenrek/homebrew-tap
           path: homebrew-tap
-          token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          token: ${{ steps.tap-token.outputs.token }}
 
       - name: Update formula
         env:

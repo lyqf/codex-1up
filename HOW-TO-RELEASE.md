@@ -16,8 +16,8 @@ This project ships via the Node script at `scripts/release.ts`. The script bumps
   - The release script extracts this section automatically for the GitHub Release description
 - Ensure any user-facing docs (README, templates) are committed.
 - Run tests and ensure coverage is healthy:
-  - Run tests (one-shot): `pnpm -C cli vitest --run`
-  - Check test coverage: `pnpm -C cli vitest --run --coverage`
+  - Run tests (one-shot): `pnpm -C cli test:run`
+  - Check test coverage: `pnpm -C cli coverage`
   - **Release bar**: keep overall coverage **> 80%** (raise it if you touch core installer/config paths)
 
 ## Quick Release

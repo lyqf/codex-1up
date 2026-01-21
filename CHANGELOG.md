@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.11] - 2026-01-21
+
 ### Added
 - Installer: on macOS, if Homebrew (`brew`) is missing, print clear install instructions (including `brew.sh`) and stop before tool installation fails later.
+
+### Fixed
+- Homebrew: fix generated formula to use `std_npm_args` (instead of `std_npm_install_args`) so `brew install regenrek/tap/codex-1up` works.
 
 ## [0.3.10] - 2026-01-21
 

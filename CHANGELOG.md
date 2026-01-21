@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-01-21
+
+### Fixed
+- AGENTS template: correct `ast-grep` command for listing matching files.
+
 ## [0.3.8] - 2026-01-04
 
 ### Changed

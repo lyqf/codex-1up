@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { InstallerContext } from '../src/installers/types.js'
 import { ensureTools } from '../src/installers/ensureTools.js'
-import { runCommand, detectPackageManager, needCmd } from '../src/installers/utils.js'
+import { runCommand, detectPackageManager, needCmd, isMacOS } from '../src/installers/utils.js'
 
 vi.mock('../src/installers/tooling.js', () => ({
   listTools: () => ([
@@ -38,7 +38,8 @@ vi.mock('../src/installers/utils.js', async () => {
     ...actual,
     runCommand: vi.fn(async () => {}),
     detectPackageManager: vi.fn(async () => 'brew'),
-    needCmd: vi.fn(async () => true)
+    needCmd: vi.fn(async () => true),
+    isMacOS: vi.fn(() => false)
   }
 })
 
@@ -97,6 +98,21 @@ describe('ensureTools', () => {
     expect(runCommand).toHaveBeenCalledWith('brew', ['update'], expect.any(Object))
     expect(runCommand).toHaveBeenCalledWith('brew', ['install', 'ripgrep', 'gh', 'fd', 'bat'], expect.any(Object))
     expect(needCmd).toHaveBeenCalled()
+  })
+
+  it('prompts to install Homebrew on macOS when brew is missing', async () => {
+    ;(isMacOS as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue(true)
+    ;(needCmd as unknown as { mockImplementation: (fn: (cmd: string) => Promise<boolean>) => void }).mockImplementation(
+      async (cmd: string) => cmd !== 'brew'
+    )
+
+    const ctx = createCtx()
+    await ensureTools(ctx)
+
+    expect(ctx.logger.err).toHaveBeenCalledWith(expect.stringContaining('brew.sh'))
+    expect(ctx.logger.err).toHaveBeenCalledWith(expect.stringContaining('Homebrew is required on macOS'))
+    expect(detectPackageManager).not.toHaveBeenCalled()
+    expect(runCommand).not.toHaveBeenCalled()
   })
 
   it('sets up GitHub CLI apt repo when installing gh (dry-run)', async () => {
@@ -196,5 +212,15 @@ describe('ensureTools', () => {
     const ctx = createCtx()
     await ensureTools(ctx)
     expect(ctx.logger.log).toHaveBeenCalledWith(expect.stringContaining('ln -s'))
+  })
+
+  it('prints gh first-time setup hints when gh was missing (non-dry-run)', async () => {
+    ;(detectPackageManager as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue('brew')
+    ;(needCmd as unknown as { mockImplementation: (fn: (cmd: string) => Promise<boolean>) => void }).mockImplementation(
+      async (cmd: string) => cmd !== 'gh'
+    )
+    const ctx = createCtx({ dryRun: false })
+    await ensureTools(ctx)
+    expect(ctx.logger.info).toHaveBeenCalledWith(expect.stringContaining('gh auth login'))
   })
 })

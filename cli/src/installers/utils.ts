@@ -19,6 +19,10 @@ export async function needCmd(cmd: string): Promise<boolean> {
   }
 }
 
+export function isMacOS(): boolean {
+  return process.platform === 'darwin'
+}
+
 export async function cmdExists(cmd: string): Promise<boolean> {
   return needCmd(cmd)
 }

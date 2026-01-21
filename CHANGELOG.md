@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Installer: on macOS, if Homebrew (`brew`) is missing, print clear install instructions (including `brew.sh`) and stop before tool installation fails later.
+
 ## [0.3.10] - 2026-01-21
 
 ### Changed
@@ -14,6 +17,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Installer: ensure GitHub CLI (`gh`) installs reliably on apt-based systems by setting up the official GitHub CLI apt repo when needed.
 - Config patcher: normalize invalid `model_reasoning_summary` values for `*-codex` models (see [Codex changelog](https://developers.openai.com/codex/changelog)). Thanks to [@calinfaja](https://github.com/calinfaja) for the report ([#34](https://github.com/regenrek/codex-1up/issues/34)).
+- Homebrew: fix generated formula to use `std_npm_args` (instead of `std_npm_install_args`) so `brew install regenrek/tap/codex-1up` works.
 
 ### Added
 - Tests: additional coverage around config patching and installer behavior.

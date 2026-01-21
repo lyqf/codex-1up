@@ -1,5 +1,5 @@
 import type { InstallerContext, PackageManager, ToolId } from './types.js'
-import { detectPackageManager, runCommand, createPrivilegedPmCmd, needCmd } from './utils.js'
+import { detectPackageManager, runCommand, createPrivilegedPmCmd, needCmd, isMacOS } from './utils.js'
 import { listTools } from './tooling.js'
 import * as path from 'path'
 import fs from 'fs-extra'
@@ -16,6 +16,20 @@ export async function ensureTools(ctx: InstallerContext): Promise<void> {
     ctx.logger.info('Skipping developer tool installs (no tools selected)')
     return
   }
+
+  if (isMacOS() && !(await needCmd('brew'))) {
+    ctx.logger.err([
+      'Homebrew is required on macOS to install developer tools automatically, but `brew` was not found.',
+      'Please install Homebrew first, then re-run this command:',
+      '',
+      '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+      '',
+      'More info: https://brew.sh/'
+    ].join('\n'))
+    return
+  }
+
+  const ghWasMissingBeforeInstall = selectedIds.includes('gh') && !(await needCmd('gh'))
 
   const pm = await detectPackageManager()
   ctx.logger.info(`Detected package manager: ${pm}`)
@@ -120,6 +134,18 @@ export async function ensureTools(ctx: InstallerContext): Promise<void> {
   }
 
   await logToolSummary(ctx, tools)
+
+  if (ghWasMissingBeforeInstall && !ctx.options.dryRun) {
+    ctx.logger.info([
+      'GitHub CLI (gh) was not detected before installation.',
+      'You should likely do the following in a new terminal:',
+      'git --version && gh --version',
+      'git config --global user.name  "Your Name"',
+      'git config --global user.email "you@example.com"',
+      'git config --global init.defaultBranch main',
+      'gh auth login'
+    ].join('\n'))
+  }
 }
 
 function resolveSelectedTools(mode: InstallerContext['options']['installTools'], selected: ToolId[] | undefined): ToolId[] {

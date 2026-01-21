@@ -90,6 +90,9 @@ This project ships via the Node script at `scripts/release.ts`. The script bumps
   - Confirm the GitHub Release is **published** (not draft).
   - If needed, manually run the workflow via `workflow_dispatch` with `tag=vX.Y.Z` (and `prerelease=true` to publish to `next`).
 - `Homebrew Tap` fails with a tarball download error (often 404): rerun the `homebrew-release.yml` workflow after the npm publish completes.
+- `brew install regenrek/tap/codex-1up` fails with `std_npm_install_args` errors:
+  - The tap formula is out of sync with Homebrew’s Node helpers; it should use `std_npm_args`.
+  - Fix by updating the tap formula (or cut a new release that regenerates the formula via `homebrew-release.yml`).
 - `Homebrew Tap` fails to push (403): confirm `HOMEBREW_TAP_APP_ID` and `HOMEBREW_TAP_APP_PRIVATE_KEY` are set in this repo, and the GitHub App is installed on `regenrek/homebrew-tap` with Contents write access.
 - `gh` failures: `gh auth status`; ensure `repo` scope exists.
 - Tag push rejected: pull/rebase or fast-forward `main`, then rerun.

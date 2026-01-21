@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { InstallerContext, InstallerOptions, Logger } from '../src/installers/types.js'
 
+// The Homebrew-based Node install path is macOS-only. Force a deterministic platform
+// for this test file so the brew-path tests behave consistently across CI runners.
+vi.mock('os', async () => {
+  const actual = await vi.importActual<any>('os')
+  return {
+    ...actual,
+    platform: () => 'darwin',
+    arch: () => 'arm64',
+  }
+})
+
 vi.mock('zx', () => {
   return {
     which: vi.fn(),
@@ -60,7 +71,8 @@ describe('installers/ensureNode', () => {
   }
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    // Reset mock implementations and any mockResolvedValueOnce queues between tests.
+    vi.resetAllMocks()
   })
 
   it('returns early when node and npm are present', async () => {

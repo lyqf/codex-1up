@@ -10,6 +10,12 @@ vi.mock('../src/installers/tooling.js', () => ({
       label: 'rg',
       bins: ['rg'],
       packages: { brew: ['ripgrep'] }
+    },
+    {
+      id: 'gh',
+      label: 'gh',
+      bins: ['gh'],
+      packages: { brew: ['gh'], apt: ['gh'] }
     }
   ])
 }))
@@ -77,7 +83,23 @@ describe('ensureTools', () => {
 
     expect(detectPackageManager).toHaveBeenCalled()
     expect(runCommand).toHaveBeenCalledWith('brew', ['update'], expect.any(Object))
-    expect(runCommand).toHaveBeenCalledWith('brew', ['install', 'ripgrep'], expect.any(Object))
+    expect(runCommand).toHaveBeenCalledWith('brew', ['install', 'ripgrep', 'gh'], expect.any(Object))
     expect(needCmd).toHaveBeenCalled()
+  })
+
+  it('sets up GitHub CLI apt repo when installing gh (dry-run)', async () => {
+    ;(detectPackageManager as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue('apt')
+    ;(needCmd as unknown as { mockImplementation: (fn: (cmd: string) => Promise<boolean>) => void }).mockImplementation(
+      async (cmd: string) => cmd !== 'gh'
+    )
+    const ctx = createCtx()
+    await ensureTools(ctx)
+
+    // Repo setup runs before apt-get update when gh is selected and missing.
+    expect(runCommand).toHaveBeenCalledWith(
+      'bash',
+      ['-lc', expect.stringContaining('github-cli.list')],
+      expect.any(Object)
+    )
   })
 })

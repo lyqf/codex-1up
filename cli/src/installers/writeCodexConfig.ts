@@ -16,7 +16,8 @@ const PROFILE_DEFAULTS: Record<Profile, ProfileDefaults> = {
       ['sandbox_mode', '"workspace-write"'],
       ['model', '"gpt-5.2-codex"'],
       ['model_reasoning_effort', '"medium"'],
-      ['model_reasoning_summary', '"concise"']
+      // gpt-5.2-codex only supports reasoning.summary = "detailed" (or omitting the field).
+      ['model_reasoning_summary', '"detailed"']
     ],
     features: [['web_search_request', 'true']],
     tables: {
@@ -30,7 +31,8 @@ const PROFILE_DEFAULTS: Record<Profile, ProfileDefaults> = {
       ['sandbox_mode', '"read-only"'],
       ['model', '"gpt-5.2-codex"'],
       ['model_reasoning_effort', '"medium"'],
-      ['model_reasoning_summary', '"concise"']
+      // gpt-5.2-codex only supports reasoning.summary = "detailed" (or omitting the field).
+      ['model_reasoning_summary', '"detailed"']
     ],
     features: [['web_search_request', 'false']]
   },
@@ -67,6 +69,7 @@ export async function writeCodexConfig(ctx: InstallerContext): Promise<void> {
   ) || touched
   touched = applyDefaultProfile(editor, ctx.options.profile, ctx.options.setDefaultProfile) || touched
   touched = applyNotifications(editor, ctx.options.notificationSound) || touched
+  touched = normalizeReasoningSummaryForCodexModels(editor) || touched
 
   if (!touched) {
     ctx.logger.info('Config already up to date; no changes needed.')
@@ -216,6 +219,14 @@ class TomlEditor {
     return match ? match[1] : undefined
   }
 
+  getRootValue(key: string): string | undefined {
+    const range = findRootRange(this.text)
+    const block = this.text.slice(range.start, range.end)
+    const regex = new RegExp(`^\\s*${escapeRegExp(key)}\\s*=\\s*(.+)$`, 'm')
+    const match = regex.exec(block)
+    return match ? match[1] : undefined
+  }
+
   replaceTable(table: string, lines: Array<[string, string]>): boolean {
     const body = lines.map(([k, v]) => `${k} = ${v}`).join('\n')
     const block = `[${table}]\n${body}\n\n`
@@ -284,6 +295,58 @@ function findRootRange(text: string): { start: number; end: number } {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function listProfileNames(toml: string): string[] {
+  const re = /^\s*\[profiles\.([^. \]]+)\]\s*$/gm
+  const names = new Set<string>()
+  let m: RegExpExecArray | null
+  while ((m = re.exec(toml))) {
+    const name = m[1]?.trim()
+    if (name) names.add(name)
+  }
+  return [...names]
+}
+
+function parseTomlStringLiteral(rhs: string | undefined): string | undefined {
+  if (!rhs) return undefined
+  const trimmed = rhs.trim()
+  // Best-effort: handle `"value"`; leave other forms alone.
+  const m = /^"([^"]*)"\s*(?:#.*)?$/.exec(trimmed)
+  return m ? m[1] : undefined
+}
+
+function isCodexModel(model: string | undefined): boolean {
+  if (!model) return false
+  return model.endsWith('-codex')
+}
+
+function normalizeReasoningSummaryForCodexModels(editor: TomlEditor): boolean {
+  let changed = false
+
+  // Root-level compatibility (if user sets a root model + summary).
+  const rootModel = parseTomlStringLiteral(editor.getRootValue('model'))
+  if (isCodexModel(rootModel)) {
+    const rootSummary = parseTomlStringLiteral(editor.getRootValue('model_reasoning_summary'))
+    if (rootSummary && rootSummary !== 'detailed') {
+      changed = editor.setRootKey('model_reasoning_summary', '"detailed"', { mode: 'force' }) || changed
+    }
+  }
+
+  // Profile-level compatibility.
+  const content = editor.content()
+  const names = new Set<string>([...Object.keys(PROFILE_DEFAULTS), ...listProfileNames(content)])
+  for (const name of names) {
+    const table = `profiles.${name}`
+    const model = parseTomlStringLiteral(editor.getValue(table, 'model'))
+    if (!isCodexModel(model)) continue
+    const summary = parseTomlStringLiteral(editor.getValue(table, 'model_reasoning_summary'))
+    if (summary && summary !== 'detailed') {
+      changed = editor.setKey(table, 'model_reasoning_summary', '"detailed"', { mode: 'force' }) || changed
+    }
+  }
+
+  return changed
 }
 
 function ensureEndsWithNewline(text: string): string {

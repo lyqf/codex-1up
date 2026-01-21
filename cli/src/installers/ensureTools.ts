@@ -49,6 +49,9 @@ export async function ensureTools(ctx: InstallerContext): Promise<void> {
         break
       case 'apt':
         {
+          if (selectedIds.includes('gh') && !(await needCmd('gh'))) {
+            await ensureGhAptRepo(ctx)
+          }
           const { cmd: aptCmd, argsPrefix } = createPrivilegedPmCmd('apt-get')
           ctx.logger.info('Running apt-get update...')
           try {
@@ -173,4 +176,34 @@ async function isToolInstalled(tool: ReturnType<typeof listTools>[number]): Prom
     if (await needCmd(bin)) return true
   }
   return false
+}
+
+async function ensureGhAptRepo(ctx: InstallerContext): Promise<void> {
+  // Ubuntu/Debian may not have `gh` in default apt repos. The official GitHub CLI repo
+  // makes `apt-get install gh` work consistently across supported distros.
+  // https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+  const script = [
+    'set -euo pipefail',
+    'if [ -f /etc/apt/sources.list.d/github-cli.list ]; then exit 0; fi',
+    'SUDO=""',
+    'if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi',
+    '$SUDO mkdir -p -m 755 /etc/apt/keyrings',
+    'if command -v curl >/dev/null 2>&1; then',
+    '  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | $SUDO tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null',
+    'elif command -v wget >/dev/null 2>&1; then',
+    '  wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | $SUDO tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null',
+    'else',
+    '  echo "Missing curl/wget; cannot set up GitHub CLI apt repo automatically." 1>&2',
+    '  exit 0',
+    'fi',
+    '$SUDO chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg',
+    'ARCH="$(dpkg --print-architecture)"',
+    'echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | $SUDO tee /etc/apt/sources.list.d/github-cli.list >/dev/null'
+  ].join('\n')
+
+  try {
+    await runCommand('bash', ['-lc', script], { dryRun: ctx.options.dryRun, logger: ctx.logger })
+  } catch {
+    ctx.logger.warn('Failed to set up GitHub CLI apt repo; will still try apt-get install gh (may fail).')
+  }
 }

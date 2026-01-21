@@ -1,0 +1,173 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { promises as fs } from 'fs'
+import { tmpdir } from 'os'
+import { join, resolve } from 'path'
+
+// Mock clack prompts; individual tests override behavior via closures.
+const promptState: {
+  selects: Array<(msg: string) => any>
+  multiselects: Array<(msg: string) => any>
+  texts: Array<(msg: string) => any>
+  confirms: Array<(msg: string) => any>
+} = { selects: [], multiselects: [], texts: [], confirms: [] }
+
+vi.mock('@clack/prompts', () => {
+  return {
+    intro: vi.fn(),
+    note: vi.fn(),
+    outro: vi.fn(),
+    cancel: vi.fn(),
+    spinner: vi.fn(() => ({ start: vi.fn(), stop: vi.fn() })),
+    isCancel: (v: any) => v === null,
+    log: { info: vi.fn(), warn: vi.fn(), success: vi.fn() },
+    confirm: vi.fn(async ({ message }: any) => {
+      const fn = promptState.confirms.shift()
+      return fn ? fn(String(message)) : true
+    }),
+    select: vi.fn(async ({ message, options }: any) => {
+      const fn = promptState.selects.shift()
+      const out = fn ? fn(String(message)) : undefined
+      if (out !== undefined) return out
+      return (options && options[0] && options[0].value) || null
+    }),
+    multiselect: vi.fn(async ({ message }: any) => {
+      const fn = promptState.multiselects.shift()
+      return fn ? fn(String(message)) : []
+    }),
+    text: vi.fn(async ({ message }: any) => {
+      const fn = promptState.texts.shift()
+      return fn ? fn(String(message)) : ''
+    })
+  }
+})
+
+vi.mock('zx', () => {
+  return {
+    which: vi.fn(async () => '/usr/bin/afplay'),
+    $: vi.fn(async () => ({ stdout: '' }))
+  }
+})
+
+vi.mock('../src/actions/selfUpdate.js', () => ({
+  runSelfUpdate: vi.fn(async () => 'up-to-date')
+}))
+
+vi.mock('../src/actions/codex.js', () => ({
+  getCodexStatus: vi.fn(async () => ({ found: true, version: '0.1.0', latest: '0.1.0', updateAvailable: false }))
+}))
+
+vi.mock('../src/actions/tools.js', () => ({
+  getToolStatuses: vi.fn(async () => [{ id: 'rg', installed: true }]),
+  isToolId: (v: any) => typeof v === 'string',
+  getToolStatusesForCommand: vi.fn(),
+  getToolStatusesForRepo: vi.fn(),
+  getToolStatusesForShell: vi.fn()
+}))
+
+describe('runInstallWizard (extra coverage)', () => {
+  beforeEach(() => {
+    promptState.selects = []
+    promptState.multiselects = []
+    promptState.texts = []
+    promptState.confirms = []
+  })
+
+  async function makeInput() {
+    const repoRoot = await fs.mkdtemp(join(tmpdir(), 'codex-1up-wiz-'))
+    await fs.mkdir(resolve(repoRoot, 'sounds'), { recursive: true })
+    await fs.writeFile(resolve(repoRoot, 'sounds', 'noti_1.wav'), 'fake', 'utf8')
+    await fs.mkdir(resolve(repoRoot, 'templates', 'agent-templates'), { recursive: true })
+    await fs.writeFile(
+      resolve(repoRoot, 'templates', 'agent-templates', 'AGENTS-default.md'),
+      '# AGENTS\n\n## Rules\n\n- Be deterministic\n',
+      'utf8'
+    )
+    return {
+      repoRoot,
+      isUnixLike: true,
+      globalAgentsExists: true,
+      currentProfile: 'balanced',
+      seededProfile: 'balanced' as const,
+      bundledSkills: [{ id: 'debug-lldb', description: 'debug', path: '/tmp/skill' }],
+      availableTools: [{ id: 'rg', bins: ['rg'], packages: { brew: ['ripgrep'], apt: ['ripgrep'], dnf: ['ripgrep'], pacman: ['ripgrep'], zypper: ['ripgrep'] } }],
+      cliArgs: {},
+      selections: {
+        profileChoice: 'balanced' as const,
+        profileMode: 'add' as const,
+        profileScope: 'single' as const,
+        setDefaultProfile: false,
+        profilesSelected: undefined,
+        installTools: 'all' as const,
+        toolsSelected: undefined,
+        installCodexCli: 'no' as const,
+        notifyAction: undefined,
+        globalAgentsAction: undefined,
+        notificationSound: undefined,
+        skillsMode: 'skip' as const,
+        skillsSelected: undefined
+      }
+    }
+  }
+
+  it('covers tool selection back path and sound preview path', async () => {
+    // Tools: select -> back -> skip
+    promptState.selects.push((msg) => (msg.includes('Install/update developer tools') ? 'select' : undefined))
+    promptState.multiselects.push(() => null) // back
+    promptState.selects.push((msg) => (msg.includes('Install/update developer tools') ? 'skip' : undefined))
+
+    // Profiles scope: choose "all"
+    promptState.selects.push((msg) => (msg.includes('Install all profiles') ? 'all' : undefined))
+    // Profile mode
+    promptState.selects.push((msg) => (msg.startsWith('How should we write all profiles') ? 'add' : undefined))
+    // Default profile selection (multi-profile path)
+    promptState.selects.push((msg) => (msg.includes('Select a default profile') ? 'balanced' : undefined))
+
+    // Sound: pick noti_1.wav, then choose preview, then use
+    promptState.selects.push((msg) => (msg === 'Notification sound' ? 'noti_1.wav' : undefined))
+    promptState.selects.push((msg) => (msg.startsWith('Selected:') ? 'preview' : undefined))
+    promptState.selects.push((msg) => (msg.startsWith('Selected:') ? 'use' : undefined))
+
+    // Global agents: preview then skip (exists=true)
+    promptState.selects.push((msg) => (msg.includes('Global ~/.codex/AGENTS.md') ? 'preview' : undefined))
+    promptState.selects.push((msg) => (msg.includes('Global ~/.codex/AGENTS.md') ? 'skip' : undefined))
+
+    // Skills: select then back then skip
+    promptState.selects.push((msg) => (msg.includes('Install bundled Agent Skills') ? 'select' : undefined))
+    promptState.multiselects.push(() => null) // back
+    promptState.selects.push((msg) => (msg.includes('Install bundled Agent Skills') ? 'skip' : undefined))
+
+    const input = await makeInput()
+    const { runInstallWizard } = await import('../src/flows/installWizard.js')
+    const res = await runInstallWizard(input as any)
+    expect(res).not.toBeNull()
+    await fs.rm(input.repoRoot, { recursive: true, force: true })
+  })
+
+  it('covers custom sound path recursion and cancel path', async () => {
+    const input = await makeInput()
+    const custom1 = resolve(input.repoRoot, 'sounds', 'missing.wav')
+    const custom2 = resolve(input.repoRoot, 'sounds', 'custom.wav')
+    await fs.writeFile(custom2, 'fake', 'utf8')
+
+    // Skip tool prompt by providing cliArgs.toolsArg
+    input.cliArgs.toolsArg = 'skip'
+
+    // Profiles: skip installing any profiles
+    promptState.selects.push((msg) => (msg.includes('Install all profiles') ? 'skip' : undefined))
+
+    // Sound: choose custom, then provide missing path, then valid path, then use
+    promptState.selects.push((msg) => (msg === 'Notification sound' ? 'custom' : undefined))
+    promptState.texts.push(() => custom1)
+    promptState.texts.push(() => custom2)
+    promptState.selects.push((msg) => (msg.startsWith('Selected:') ? 'use' : undefined))
+
+    // Global agents: return cancel (null) -> cancels wizard
+    promptState.selects.push((msg) => (msg.includes('Global ~/.codex/AGENTS.md') ? null : undefined))
+
+    const { runInstallWizard } = await import('../src/flows/installWizard.js')
+    const res = await runInstallWizard(input as any)
+    expect(res).toBeNull()
+    await fs.rm(input.repoRoot, { recursive: true, force: true })
+  })
+})
+

@@ -65,6 +65,7 @@ describe('writeCodexConfig targeted patches', () => {
     expect(data).toMatch(/\[profiles\.balanced\][\s\S]*sandbox_mode\s*=\s*"workspace-write"/)
     expect(data).toMatch(/\[profiles\.balanced\][\s\S]*model\s*=\s*"gpt-5.2-codex"/)
     expect(data).toMatch(/\[profiles\.balanced\][\s\S]*model_reasoning_effort\s*=\s*"medium"/)
+    expect(data).toMatch(/\[profiles\.balanced\][\s\S]*model_reasoning_summary\s*=\s*"detailed"/)
     expect(data).toMatch(/\[profiles\.balanced\.features\][\s\S]*web_search_request\s*=\s*true/)
     await cleanup()
   })
@@ -79,6 +80,7 @@ describe('writeCodexConfig targeted patches', () => {
     expect(data).toMatch(/\[profiles\.safe\][\s\S]*approval_policy\s*=\s*"on-failure"/)
     expect(data).toMatch(/\[profiles\.safe\][\s\S]*model\s*=\s*"gpt-5.2-codex"/)
     expect(data).toMatch(/\[profiles\.safe\][\s\S]*model_reasoning_effort\s*=\s*"medium"/)
+    expect(data).toMatch(/\[profiles\.safe\][\s\S]*model_reasoning_summary\s*=\s*"detailed"/)
     expect(data).not.toMatch(/\[profiles\.safe\][\s\S]*extra_key/)
     expect(data).toMatch(/\[profiles\.safe\.features\][\s\S]*web_search_request\s*=\s*false/)
     await cleanup()
@@ -195,6 +197,37 @@ describe('writeCodexConfig targeted patches', () => {
     expect(data).not.toMatch(/experimental_use_unified_exec_tool/)
     expect(data).not.toMatch(/include_apply_patch_tool/)
     expect(data).not.toMatch(/experimental_use_rmcp_client/)
+    await cleanup()
+  })
+
+  it('normalizes invalid model_reasoning_summary for *-codex models', async () => {
+    const initial = [
+      '[profiles.safe]',
+      'model = "gpt-5.2-codex"',
+      'model_reasoning_summary = "concise"',
+      ''
+    ].join('\n')
+    const { ctx, cfgPath, cleanup } = await setupContext(initial)
+    ctx.options.profile = 'skip'
+    await writeCodexConfig(ctx)
+    const data = await fs.readFile(cfgPath, 'utf8')
+    expect(data).toMatch(/\[profiles\.safe\][\s\S]*model_reasoning_summary\s*=\s*"detailed"/)
+    expect(data).not.toMatch(/\[profiles\.safe\][\s\S]*model_reasoning_summary\s*=\s*"concise"/)
+    await cleanup()
+  })
+
+  it('does not rewrite model_reasoning_summary for non-codex models', async () => {
+    const initial = [
+      '[profiles.safe]',
+      'model = "gpt-5.2"',
+      'model_reasoning_summary = "concise"',
+      ''
+    ].join('\n')
+    const { ctx, cfgPath, cleanup } = await setupContext(initial)
+    ctx.options.profile = 'skip'
+    await writeCodexConfig(ctx)
+    const data = await fs.readFile(cfgPath, 'utf8')
+    expect(data).toMatch(/\[profiles\.safe\][\s\S]*model_reasoning_summary\s*=\s*"concise"/)
     await cleanup()
   })
 })

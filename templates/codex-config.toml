@@ -42,7 +42,7 @@ approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 model = "gpt-5.2-codex"
 model_reasoning_effort = "medium"
-model_reasoning_summary = "concise"
+model_reasoning_summary = "detailed"
 [profiles.balanced.features]
 web_search_request = true
 
@@ -51,7 +51,7 @@ approval_policy = "on-failure"
 sandbox_mode = "read-only"
 model = "gpt-5.2-codex"
 model_reasoning_effort = "medium"
-model_reasoning_summary = "concise"
+model_reasoning_summary = "detailed"
 [profiles.safe.features]
 web_search_request = false
 

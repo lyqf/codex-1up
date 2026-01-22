@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.16] - 2026-01-22
+
+### Fixed
+- Installer: align Codex v0.88 feature flags for subagents vs collaboration modes (`collab` vs `collaboration_modes`), and migrate the mistakenly-used singular key.
+- CLI: fix `--experimental` help text to reference `multi-agents` (not `multi-agent`).
+
 ## [0.3.15] - 2026-01-22
 
 ### Fixed

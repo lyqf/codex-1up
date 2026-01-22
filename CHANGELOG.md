@@ -9,6 +9,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Release: follow-up patch release (no functional changes).
 
+## [0.3.18] - 2026-01-22
+
+### Removed
+- Installer: remove deprecated TUI2 support (`--tui2` flag, wizard prompt, and `[features].tui2` template/config writing).
+- Installer: remove the MCP scaffolding wizard step.
+
 ## [0.3.16] - 2026-01-22
 
 ### Fixed
@@ -27,7 +33,7 @@ All notable changes to this project will be documented in this file.
   - `--web-search` (disabled|cached|live|skip)
   - `--file-opener` (cursor|vscode|vscode-insiders|windsurf|none|skip)
   - `--credentials-store` (auto|file|keyring|skip)
-  - `--tui2` and `--alt-screen` (auto|always|never|skip)
+  - `--alt-screen` (auto|always|never|skip)
   - `--experimental` (background-terminal, shell-snapshot, multi-agents, steering, collaboration-modes, child-agent-project-docs)
 - Config: `codex-1up config trust --path <dir>` to mark a repo as trusted in `~/.codex/config.toml`.
 - Config: `codex-1up config mcp set <name> ...` helper to add/update `[mcp_servers]` entries safely.

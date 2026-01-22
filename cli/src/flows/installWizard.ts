@@ -40,7 +40,6 @@ export interface InstallSelections {
   webSearch?: 'disabled' | 'cached' | 'live' | 'skip' | undefined
   fileOpener?: FileOpenerChoice | undefined
   credentialsStore?: CredentialsStoreChoice | undefined
-  enableTui2: boolean
   tuiAlternateScreen?: TuiAltScreenChoice | undefined
   experimentalFeatures?: ExperimentalFeature[] | undefined
 }
@@ -63,7 +62,6 @@ export interface InstallWizardInput {
     webSearchArg?: string
     fileOpenerArg?: string
     credentialsStoreArg?: string
-    tui2Arg?: boolean
     altScreenArg?: string
     experimentalArg?: string
   }
@@ -105,7 +103,6 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
     webSearch,
     fileOpener,
     credentialsStore,
-    enableTui2,
     tuiAlternateScreen,
     experimentalFeatures
   } = input.selections
@@ -398,15 +395,6 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
     credentialsStore = store
   }
 
-  if (typeof cliArgs.tui2Arg === 'undefined') {
-    const tui2 = await p.confirm({
-      message: 'Enable TUI2 (experimental UI path in Codex)?',
-      initialValue: enableTui2
-    })
-    if (p.isCancel(tui2)) return cancelWizard()
-    enableTui2 = Boolean(tui2)
-  }
-
   if (!cliArgs.altScreenArg) {
     const alt = await p.select({
       message: 'Alternate screen mode (scrollback-friendly terminals)',
@@ -661,7 +649,6 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
       webSearch,
       fileOpener,
       credentialsStore,
-      enableTui2,
       tuiAlternateScreen,
       experimentalFeatures
     }

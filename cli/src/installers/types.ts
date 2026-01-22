@@ -54,7 +54,6 @@ export interface InstallerOptions {
   webSearch?: WebSearchChoice | undefined
   fileOpener?: FileOpenerChoice | undefined
   credentialsStore?: CredentialsStoreChoice | undefined
-  enableTui2?: boolean
   tuiAlternateScreen?: TuiAltScreenChoice | undefined
   experimentalFeatures?: ExperimentalFeature[] | undefined
   mode: InstallMode

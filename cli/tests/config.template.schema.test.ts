@@ -71,7 +71,6 @@ const FEATURES_KEYS = new Set([
   'shell_snapshot',
   'shell_tool',
   'steer',
-  'tui2',
   'undo',
   'unified_exec',
   'web_search',

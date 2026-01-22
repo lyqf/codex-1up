@@ -26,7 +26,6 @@ function makeCtx(sound: string): InstallerContext {
     webSearch: undefined,
     fileOpener: undefined,
     credentialsStore: undefined,
-    enableTui2: false,
     tuiAlternateScreen: undefined,
     experimentalFeatures: undefined,
     mode: 'manual', installNode: 'skip', shell: 'auto', vscodeId: undefined,

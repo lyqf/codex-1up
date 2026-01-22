@@ -44,7 +44,6 @@ export const installCommand = defineCommand({
     'web-search': { type: 'string', description: 'disabled|cached|live|skip (override web search mode in selected profiles)' },
     'file-opener': { type: 'string', description: 'cursor|vscode|vscode-insiders|windsurf|none|skip (open citations in editor)' },
     'credentials-store': { type: 'string', description: 'auto|file|keyring|skip (set cli_auth_credentials_store + mcp_oauth_credentials_store)' },
-    tui2: { type: 'boolean', description: 'Enable Codex TUI2 (experimental)' },
     'alt-screen': { type: 'string', description: 'auto|always|never|skip (set tui.alternate_screen)' },
     experimental: { type: 'string', description: 'comma-separated experimental feature toggles: background-terminal, steering, multi-agents, collaboration-modes' },
     sound: { type: 'string', description: 'Sound file, "none", or "skip" to leave unchanged' },
@@ -82,9 +81,6 @@ export const installCommand = defineCommand({
     const cliCredentialsStoreArg = typeof args['credentials-store'] === 'undefined'
       ? undefined
       : String(args['credentials-store']).trim()
-    const cliTui2Arg = typeof args.tui2 === 'undefined'
-      ? undefined
-      : Boolean(args.tui2)
     const cliAltScreenArg = typeof args['alt-screen'] === 'undefined'
       ? undefined
       : String(args['alt-screen']).trim()
@@ -133,7 +129,6 @@ export const installCommand = defineCommand({
     let webSearch: WebSearchChoice | undefined
     let fileOpener: FileOpenerChoice | undefined
     let credentialsStore: CredentialsStoreChoice | undefined
-    let enableTui2: boolean = false
     let tuiAlternateScreen: TuiAltScreenChoice | undefined
     let experimentalFeatures: ExperimentalFeature[] | undefined
 
@@ -179,7 +174,6 @@ export const installCommand = defineCommand({
     if (cliCredentialsStoreArg) {
       credentialsStore = normalizeCredentialsStoreArg(cliCredentialsStoreArg)
     }
-    enableTui2 = Boolean(cliTui2Arg || false)
     if (cliAltScreenArg) {
       tuiAlternateScreen = normalizeAltScreenArg(cliAltScreenArg)
     }
@@ -229,7 +223,6 @@ export const installCommand = defineCommand({
           webSearchArg: cliWebSearchArg,
           fileOpenerArg: cliFileOpenerArg,
           credentialsStoreArg: cliCredentialsStoreArg,
-          tui2Arg: cliTui2Arg,
           altScreenArg: cliAltScreenArg,
           experimentalArg: cliExperimentalArg
         },
@@ -250,7 +243,6 @@ export const installCommand = defineCommand({
           webSearch,
           fileOpener,
           credentialsStore,
-          enableTui2,
           tuiAlternateScreen,
           experimentalFeatures
         }
@@ -273,7 +265,6 @@ export const installCommand = defineCommand({
         webSearch,
         fileOpener,
         credentialsStore,
-        enableTui2,
         tuiAlternateScreen,
         experimentalFeatures
       } = wizardResult.selections)
@@ -318,7 +309,6 @@ export const installCommand = defineCommand({
       webSearch,
       fileOpener,
       credentialsStore,
-      enableTui2,
       tuiAlternateScreen,
       experimentalFeatures,
       mode: 'manual',

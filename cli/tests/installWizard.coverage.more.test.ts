@@ -110,8 +110,6 @@ describe('runInstallWizard (extra coverage)', () => {
         webSearch: 'skip',
         fileOpener: 'skip',
         credentialsStore: 'auto',
-        scaffoldMcpServers: false,
-        enableTui2: false,
         tuiAlternateScreen: 'skip',
         experimentalFeatures: undefined
       }
@@ -163,7 +161,6 @@ describe('runInstallWizard (extra coverage)', () => {
     // Skip new advanced prompts so this test can focus on sound + cancellation behavior.
     input.cliArgs.fileOpenerArg = 'skip'
     input.cliArgs.credentialsStoreArg = 'skip'
-    input.cliArgs.tui2Arg = false
     input.cliArgs.altScreenArg = 'skip'
     input.cliArgs.experimentalArg = 'skip'
 
@@ -296,7 +293,7 @@ describe('runInstallWizard (extra coverage)', () => {
     await fs.rm(input.repoRoot, { recursive: true, force: true })
   })
 
-  it('covers advanced prompts selections (web search, opener, creds, tui2, alt-screen, experimental)', async () => {
+  it('covers advanced prompts selections (web search, opener, creds, alt-screen, experimental)', async () => {
     const input = await makeInput()
     input.cliArgs.toolsArg = 'skip'
 
@@ -311,7 +308,6 @@ describe('runInstallWizard (extra coverage)', () => {
     promptState.selects.push(() => 'live')    // web search
     promptState.selects.push(() => 'cursor')  // file opener
     promptState.selects.push(() => 'auto')    // credential store
-    promptState.confirms.push(() => true)     // enable TUI2
     promptState.selects.push(() => 'never')   // alternate screen
     promptState.multiselects.push(() => ['collaboration-modes', 'multi-agents'])
 
@@ -333,7 +329,6 @@ describe('runInstallWizard (extra coverage)', () => {
     expect(res!.selections.webSearch).toBe('live')
     expect(res!.selections.fileOpener).toBe('cursor')
     expect(res!.selections.credentialsStore).toBe('auto')
-    expect(res!.selections.enableTui2).toBe(true)
     expect(res!.selections.tuiAlternateScreen).toBe('never')
     expect(res!.selections.experimentalFeatures).toEqual(['collaboration-modes', 'multi-agents'])
 
@@ -348,7 +343,6 @@ describe('runInstallWizard (extra coverage)', () => {
     input.cliArgs.webSearchArg = 'skip'
     input.cliArgs.fileOpenerArg = 'skip'
     input.cliArgs.credentialsStoreArg = 'skip'
-    input.cliArgs.tui2Arg = false
     input.cliArgs.altScreenArg = 'skip'
     input.cliArgs.experimentalArg = 'skip'
 
@@ -400,7 +394,6 @@ describe('runInstallWizard (extra coverage)', () => {
     input.globalAgentsExists = false
     input.cliArgs.fileOpenerArg = 'skip'
     input.cliArgs.credentialsStoreArg = 'skip'
-    input.cliArgs.tui2Arg = false
     input.cliArgs.altScreenArg = 'skip'
     input.cliArgs.experimentalArg = 'skip'
 

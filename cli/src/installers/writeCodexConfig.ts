@@ -221,9 +221,7 @@ function applyExperimentalFeatureToggles(editor: TomlEditor, ctx: InstallerConte
   const targets = resolveProfileTargets(ctx.options.profileScope, ctx.options.profile, ctx.options.profilesSelected)
   if (targets.length === 0) return false
 
-  const flags: Array<{ key: string; enabled: boolean }> = [
-    { key: 'tui2', enabled: Boolean(ctx.options.enableTui2) }
-  ]
+  const flags: Array<{ key: string; enabled: boolean }> = []
 
   for (const f of ctx.options.experimentalFeatures || []) {
     if (f === 'background-terminal') {

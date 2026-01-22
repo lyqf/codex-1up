@@ -112,7 +112,7 @@ describe('install args mapping', () => {
     expect(opts.toolsSelected).toEqual(['rg', 'fd'])
   })
 
-  it('maps v0.88 config flags (web search, opener, credential store, tui)', async () => {
+  it('maps v0.88 config flags (web search, opener, credential store, alt-screen)', async () => {
     Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
     await runCommand(installCommand, { rawArgs: buildRawArgsFromFlags({
       yes: true,
@@ -124,14 +124,12 @@ describe('install args mapping', () => {
       'web-search': 'live',
       'file-opener': 'cursor',
       'credentials-store': 'auto',
-      tui2: true,
       'alt-screen': 'never'
     }) })
     const opts = captured.pop()
     expect(opts.webSearch).toBe('live')
     expect(opts.fileOpener).toBe('cursor')
     expect(opts.credentialsStore).toBe('auto')
-    expect(opts.enableTui2).toBe(true)
     expect(opts.tuiAlternateScreen).toBe('never')
   })
 

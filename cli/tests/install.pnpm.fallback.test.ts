@@ -5,31 +5,25 @@ import { runCommand, needCmd } from '../src/installers/utils.js'
 import { resolveNodeGlobalPm } from '../src/installers/nodeGlobal.js'
 import * as prompts from '@clack/prompts'
 
-// Mock zx calls used inside installNpmGlobals
-vi.mock('zx', () => {
-  const mock$ = vi.fn((strings: TemplateStringsArray, ...expr: unknown[]) => {
-    const cmd = strings.reduce((acc, cur, idx) => acc + cur + (expr[idx] ?? ''), '')
-    if (cmd.startsWith('npm view')) {
-      return { stdout: '0.63.0\n', quiet() { return this }, nothrow() { return this } }
-    }
-    if (cmd.startsWith('npm ls -g')) {
-      const payload = {
-        dependencies: {
-          '@openai/codex': { version: '0.61.0' }
-        }
-      }
-      return { stdout: JSON.stringify(payload), quiet() { return this }, nothrow() { return this } }
-    }
-    return { stdout: '', quiet() { return this }, nothrow() { return this } }
-  })
-  return { $: mock$ }
-})
-
 // Mock utils to control package manager detection and command execution
 vi.mock('../src/installers/utils.js', async () => {
   const actual = await vi.importActual<typeof import('../src/installers/utils.js')>('../src/installers/utils.js')
   return {
     ...actual,
+    execCapture: vi.fn(async (cmd: string, args: string[]) => {
+      if (cmd === 'codex' && args[0] === '--version') {
+        return { code: 0, stdout: 'codex 0.61.0\n', stderr: '', timedOut: false }
+      }
+      if (cmd === 'npm' && args[0] === 'ls') {
+        const payload = {
+          dependencies: {
+            '@openai/codex': { version: '0.61.0' }
+          }
+        }
+        return { code: 0, stdout: JSON.stringify(payload), stderr: '', timedOut: false }
+      }
+      return { code: 0, stdout: '', stderr: '', timedOut: false }
+    }),
     runCommand: vi.fn(async () => {}),
     needCmd: vi.fn(async () => true)
   }
@@ -92,6 +86,10 @@ function createCtx(overrides: Partial<InstallerContext['options']> = {}): Instal
 describe('installNpmGlobals pnpm fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ version: '0.63.0' })
+    })))
   })
 
   it('prompts to update when Codex is installed and newer version is available', async () => {

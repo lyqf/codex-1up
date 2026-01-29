@@ -117,6 +117,8 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
     err: (msg: string) => p.log.warn(msg)
   }
 
+  const updateCheckSpinner = p.spinner()
+  updateCheckSpinner.start('Checking for codex-1up updates…')
   await runSelfUpdate({
     interactive: true,
     assumeYes: false,
@@ -124,8 +126,12 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
     dryRun: false,
     logger: wizardLogger
   })
+  updateCheckSpinner.stop('Update check complete')
 
+  const codexCheckSpinner = p.spinner()
+  codexCheckSpinner.start('Checking Codex CLI status…')
   const codexStatus = await getCodexStatus()
+  codexCheckSpinner.stop('Codex CLI status checked')
   if (codexStatus.found) {
     const versionLabel = codexStatus.version ? `v${codexStatus.version}` : 'unknown version'
     if (codexStatus.latest) {

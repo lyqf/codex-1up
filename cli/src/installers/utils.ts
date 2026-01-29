@@ -95,6 +95,67 @@ export async function runCommand(
   })
 }
 
+export interface ExecCaptureOptions {
+  cwd?: string
+  timeoutMs?: number
+}
+
+export interface ExecCaptureResult {
+  code: number | null
+  stdout: string
+  stderr: string
+  timedOut: boolean
+}
+
+export async function execCapture(
+  cmd: string,
+  args: string[],
+  options: ExecCaptureOptions = {}
+): Promise<ExecCaptureResult> {
+  const proc = spawn(cmd, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: options.cwd || process.cwd(),
+    shell: false
+  })
+
+  let stdout = ''
+  let stderr = ''
+  let timedOut = false
+
+  proc.stdout?.setEncoding('utf8')
+  proc.stderr?.setEncoding('utf8')
+  proc.stdout?.on('data', (chunk) => { stdout += String(chunk) })
+  proc.stderr?.on('data', (chunk) => { stderr += String(chunk) })
+
+  let timeout: NodeJS.Timeout | undefined
+  if (options.timeoutMs && options.timeoutMs > 0) {
+    timeout = setTimeout(() => {
+      timedOut = true
+      try {
+        // Best-effort: terminate, then hard kill.
+        proc.kill()
+        setTimeout(() => {
+          try { proc.kill('SIGKILL') } catch { /* ignore */ }
+        }, 250).unref?.()
+      } catch {
+        // ignore
+      }
+    }, options.timeoutMs)
+    timeout.unref?.()
+  }
+
+  return await new Promise<ExecCaptureResult>((resolve) => {
+    proc.on('error', (err) => {
+      if (timeout) clearTimeout(timeout)
+      resolve({ code: null, stdout, stderr: `${stderr}${stderr ? '\n' : ''}${String(err)}`, timedOut })
+    })
+    proc.on('close', (code) => {
+      if (timeout) clearTimeout(timeout)
+      resolve({ code, stdout, stderr, timedOut })
+    })
+  })
+}
+
 export function createBackupPath(originalPath: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
   return `${originalPath}.backup.${timestamp}`

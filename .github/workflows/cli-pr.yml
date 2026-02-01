@@ -72,6 +72,7 @@ jobs:
         run: pnpm run test:run
         env:
           CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
         continue-on-error: true
 
       - name: Build CLI

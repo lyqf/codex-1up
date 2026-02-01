@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 - Installer: allow enabling `features.collaboration_modes` via the wizard/`--experimental` to turn on Plan/Pair/Execute collaboration modes.
 - Installer: allow enabling `features.apps` and `features.personality` via the wizard/`--experimental` to match Codex TUI `/experimental` options.
 
+### Fixed
+- CI: reduce flakiness by increasing Node heap size for Vitest runs.
+
 ## [0.3.20] - 2026-01-29
 
 ### Fixed

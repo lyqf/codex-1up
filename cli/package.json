@@ -11,8 +11,8 @@
     "dev": "tsx src/index.ts",
     "build": "tsup src/main.ts --format esm --dts --minify --clean --out-dir dist",
     "test": "vitest",
-    "test:run": "vitest run",
-    "coverage": "vitest run --coverage",
+    "test:run": "node node_modules/vitest/vitest.mjs run --execArgv=--max-old-space-size=4096 --maxWorkers=1 --no-file-parallelism",
+    "coverage": "node node_modules/vitest/vitest.mjs run --coverage --execArgv=--max-old-space-size=4096 --maxWorkers=1 --no-file-parallelism",
     "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {

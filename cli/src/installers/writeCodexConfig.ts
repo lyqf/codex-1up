@@ -1,6 +1,7 @@
 import type { InstallerContext, Profile } from './types.js'
 import fs from 'fs-extra'
 import * as path from 'path'
+import * as TOML from 'toml'
 import { createBackupPath } from './utils.js'
 
 interface ProfileDefaults {
@@ -25,7 +26,7 @@ const PROFILE_DEFAULTS: Record<Profile, ProfileDefaults> = {
   },
   safe: {
     root: [
-      ['approval_policy', '"on-failure"'],
+      ['approval_policy', '"untrusted"'],
       ['sandbox_mode', '"read-only"'],
       ['model', '"gpt-5.2-codex"'],
       ['model_reasoning_effort', '"medium"'],
@@ -62,6 +63,8 @@ export async function writeCodexConfig(ctx: InstallerContext): Promise<void> {
   let touched =
     migratedWindowsSandbox.changed || migratedLegacyFeatures.changed || migratedCollaborationModes.changed
 
+  touched = migrateModelPersonalityKey(editor) || touched
+
   touched = applyProfile(
     editor,
     ctx.options.profileScope,
@@ -75,6 +78,7 @@ export async function writeCodexConfig(ctx: InstallerContext): Promise<void> {
   touched = applyFileOpener(editor, ctx) || touched
   touched = applyCredentialsStore(editor, ctx) || touched
   touched = applyTuiAlternateScreen(editor, ctx) || touched
+  touched = applyPersonality(editor, ctx) || touched
   touched = applyExperimentalFeatureToggles(editor, ctx) || touched
   touched = applySuppressUnstableFeaturesWarning(editor, ctx) || touched
   touched = normalizeReasoningSummaryForCodexModels(editor) || touched
@@ -85,6 +89,12 @@ export async function writeCodexConfig(ctx: InstallerContext): Promise<void> {
   }
 
   const finalContent = editor.content()
+  // Safety net: ensure we never write invalid TOML.
+  try {
+    TOML.parse(finalContent)
+  } catch (error) {
+    throw new Error(`Generated config.toml is invalid TOML: ${error}`)
+  }
   if (ctx.options.dryRun) {
     ctx.logger.log(`[dry-run] write ${cfgPath}`)
     // Avoid logging the full config content, which may contain sensitive values.
@@ -218,18 +228,22 @@ function applyTuiAlternateScreen(editor: TomlEditor, ctx: InstallerContext): boo
   return editor.setKey('tui', 'alternate_screen', `"${choice}"`, { mode: 'force' })
 }
 
+function applyPersonality(editor: TomlEditor, ctx: InstallerContext): boolean {
+  const choice = ctx.options.personality
+  if (!choice || choice === 'skip') return false
+  return editor.setRootKey('personality', `"${choice}"`, { mode: 'force' })
+}
+
 function applyExperimentalFeatureToggles(editor: TomlEditor, ctx: InstallerContext): boolean {
   const targets = resolveProfileTargets(ctx.options.profileScope, ctx.options.profile, ctx.options.profilesSelected)
   if (targets.length === 0) return false
 
   // Map wizard feature names to Codex config keys (features exposed in /experimental menu)
   const featureKeyMap: Record<string, string> = {
-    'background-terminal': 'unified_exec',  // run long-running commands in background
-    'shell-snapshot': 'shell_snapshot',     // snapshot shell env to speed up commands
-    'apps': 'apps',                         // ChatGPT Apps (connectors)
-    'steering': 'steer',                    // Enter submits, Tab queues messages
-    'personality': 'personality',           // enable personality selection UI
-    'collaboration-modes': 'collaboration_modes' // enable collaboration modes UI
+    'apps': 'apps', // ChatGPT Apps (connectors)
+    'sub-agents': 'collab', // spawn sub-agents
+    'bubblewrap-sandbox': 'use_linux_sandbox_bwrap', // Linux-only experimental sandbox pipeline
+    'prevent-idle-sleep': 'prevent_idle_sleep' // prevent sleep during turns
   }
 
   const wanted = (ctx.options.experimentalFeatures || [])
@@ -391,6 +405,19 @@ class TomlEditor {
     return this.text !== before
   }
 
+  deleteRootKey(key: string): boolean {
+    const range = findRootRange(this.text)
+    const block = this.text.slice(range.start, range.end)
+    const regex = new RegExp(`^\\s*${escapeRegExp(key)}\\s*=.*(?:\\r?\\n)?`, 'm')
+    const match = regex.exec(block)
+    if (!match) return false
+    const before = this.text
+    const absStart = range.start + match.index
+    const absEnd = absStart + match[0].length
+    this.text = before.slice(0, absStart) + before.slice(absEnd)
+    return this.text !== before
+  }
+
   private hasTable(table: string): boolean {
     return findTableRange(this.text, table) !== null
   }
@@ -443,9 +470,28 @@ function parseTomlStringLiteral(rhs: string | undefined): string | undefined {
   return m ? m[1] : undefined
 }
 
+function migrateModelPersonalityKey(editor: TomlEditor): boolean {
+  // Codex config key is `personality`. We previously documented (and some users configured) `model_personality`.
+  const oldValue = editor.getRootValue('model_personality')
+  if (!oldValue) return false
+
+  let changed = false
+  const existingNew = editor.getRootValue('personality')
+  if (!existingNew) {
+    changed = editor.setRootKey('personality', oldValue.trim(), { mode: 'force' }) || changed
+  }
+  changed = editor.deleteRootKey('model_personality') || changed
+  return changed
+}
+
 function isCodexModel(model: string | undefined): boolean {
   if (!model) return false
-  return model.endsWith('-codex')
+  return model.includes('-codex')
+}
+
+function isCodexSparkModel(model: string | undefined): boolean {
+  if (!model) return false
+  return model.includes('-codex-spark')
 }
 
 function normalizeReasoningSummaryForCodexModels(editor: TomlEditor): boolean {
@@ -453,7 +499,12 @@ function normalizeReasoningSummaryForCodexModels(editor: TomlEditor): boolean {
 
   // Root-level compatibility (if user sets a root model + summary).
   const rootModel = parseTomlStringLiteral(editor.getRootValue('model'))
-  if (isCodexModel(rootModel)) {
+  if (isCodexSparkModel(rootModel)) {
+    const rootSummary = parseTomlStringLiteral(editor.getRootValue('model_reasoning_summary'))
+    if (rootSummary !== 'none') {
+      changed = editor.setRootKey('model_reasoning_summary', '"none"', { mode: 'force' }) || changed
+    }
+  } else if (isCodexModel(rootModel)) {
     const rootSummary = parseTomlStringLiteral(editor.getRootValue('model_reasoning_summary'))
     if (rootSummary && rootSummary !== 'detailed') {
       changed = editor.setRootKey('model_reasoning_summary', '"detailed"', { mode: 'force' }) || changed
@@ -466,10 +517,18 @@ function normalizeReasoningSummaryForCodexModels(editor: TomlEditor): boolean {
   for (const name of names) {
     const table = `profiles.${name}`
     const model = parseTomlStringLiteral(editor.getValue(table, 'model'))
-    if (!isCodexModel(model)) continue
-    const summary = parseTomlStringLiteral(editor.getValue(table, 'model_reasoning_summary'))
-    if (summary && summary !== 'detailed') {
-      changed = editor.setKey(table, 'model_reasoning_summary', '"detailed"', { mode: 'force' }) || changed
+    if (isCodexSparkModel(model)) {
+      const summary = parseTomlStringLiteral(editor.getValue(table, 'model_reasoning_summary'))
+      if (summary !== 'none') {
+        changed = editor.setKey(table, 'model_reasoning_summary', '"none"', { mode: 'force' }) || changed
+      }
+      continue
+    }
+    if (isCodexModel(model)) {
+      const summary = parseTomlStringLiteral(editor.getValue(table, 'model_reasoning_summary'))
+      if (summary && summary !== 'detailed') {
+        changed = editor.setKey(table, 'model_reasoning_summary', '"detailed"', { mode: 'force' }) || changed
+      }
     }
   }
 

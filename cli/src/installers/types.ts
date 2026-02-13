@@ -14,14 +14,14 @@ export type CredentialsStoreMode = 'auto' | 'file' | 'keyring'
 export type CredentialsStoreChoice = CredentialsStoreMode | 'skip'
 export type TuiAltScreenMode = 'auto' | 'always' | 'never'
 export type TuiAltScreenChoice = TuiAltScreenMode | 'skip'
+export type Personality = 'none' | 'friendly' | 'pragmatic'
+export type PersonalityChoice = Personality | 'skip'
 // Experimental features exposed in Codex TUI's /experimental menu
 export type ExperimentalFeature =
-  | 'background-terminal'   // unified_exec - run long-running commands in background
-  | 'shell-snapshot'        // shell_snapshot - snapshot shell env to speed up commands
   | 'apps'                  // apps - enable ChatGPT Apps (connectors) via "$" and /apps
-  | 'steering'              // steer - Enter submits, Tab queues messages
-  | 'personality'           // personality - enable personality selection UI
-  | 'collaboration-modes'   // collaboration_modes - enable collaboration modes UI (plan/pair/execute)
+  | 'sub-agents'            // collab - enable spawning sub-agents
+  | 'bubblewrap-sandbox'    // use_linux_sandbox_bwrap - experimental Linux sandbox pipeline
+  | 'prevent-idle-sleep'    // prevent_idle_sleep - prevent system sleep during turns
 export type SuppressUnstableWarning = boolean | 'skip'
 export type ToolId =
   | 'rg'
@@ -57,6 +57,7 @@ export interface InstallerOptions {
   fileOpener?: FileOpenerChoice | undefined
   credentialsStore?: CredentialsStoreChoice | undefined
   tuiAlternateScreen?: TuiAltScreenChoice | undefined
+  personality?: PersonalityChoice | undefined
   experimentalFeatures?: ExperimentalFeature[] | undefined
   suppressUnstableWarning?: SuppressUnstableWarning | undefined
   mode: InstallMode

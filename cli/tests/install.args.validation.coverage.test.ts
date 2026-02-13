@@ -52,7 +52,7 @@ describe('install args validation (extra coverage)', () => {
     Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
     await expect(runCommand(installCommand, { rawArgs: buildRawArgsFromFlags({ profile: 'nope' }) }))
       .rejects.toThrow(/Invalid --profile value/)
-    await expect(runCommand(installCommand, { rawArgs: buildRawArgsFromFlags({ 'profiles-scope': 'selected' }) }))
+    await expect(runCommand(installCommand, { rawArgs: buildRawArgsFromFlags({ 'profiles-scope': 'many' }) }))
       .rejects.toThrow(/Invalid --profiles-scope value/)
     await expect(runCommand(installCommand, { rawArgs: buildRawArgsFromFlags({ 'profile-mode': 'merge' }) }))
       .rejects.toThrow(/Invalid --profile-mode value/)
@@ -75,11 +75,11 @@ describe('install args validation (extra coverage)', () => {
         yes: true,
         'skip-confirmation': true,
         'dry-run': true,
-        experimental: 'steering,steering,background-terminal'
+        experimental: 'apps,apps,sub-agents'
       })
     })
     const opts = calls.pop()
-    expect(opts.experimentalFeatures).toEqual(['steering', 'background-terminal'])
+    expect(opts.experimentalFeatures).toEqual(['apps', 'sub-agents'])
   })
 
   it('applies --sound=skip and --sound=none', async () => {

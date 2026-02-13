@@ -13,6 +13,7 @@ import type {
   InstallCodexCliChoice,
   InstallToolsChoice,
   NotifyAction,
+  PersonalityChoice,
   Profile,
   ProfileMode,
   ProfileScope,
@@ -42,6 +43,7 @@ export interface InstallSelections {
   fileOpener?: FileOpenerChoice | undefined
   credentialsStore?: CredentialsStoreChoice | undefined
   tuiAlternateScreen?: TuiAltScreenChoice | undefined
+  personality?: PersonalityChoice | undefined
   experimentalFeatures?: ExperimentalFeature[] | undefined
   suppressUnstableWarning?: SuppressUnstableWarning | undefined
 }
@@ -65,6 +67,7 @@ export interface InstallWizardInput {
     fileOpenerArg?: string
     credentialsStoreArg?: string
     altScreenArg?: string
+    personalityArg?: string
     experimentalArg?: string
   }
   selections: InstallSelections
@@ -106,6 +109,7 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
     fileOpener,
     credentialsStore,
     tuiAlternateScreen,
+    personality,
     experimentalFeatures,
     suppressUnstableWarning
   } = input.selections
@@ -229,7 +233,7 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
 
   const profileOptions = [
     { label: 'Balanced (recommended)', value: 'balanced', hint: 'on-request approvals · workspace-write · web search on' },
-    { label: 'Safe', value: 'safe', hint: 'on-failure approvals · read-only · web search off' },
+    { label: 'Safe', value: 'safe', hint: 'untrusted approvals · read-only · web search off' },
     { label: 'YOLO', value: 'yolo', hint: 'never approvals · danger-full-access · gpt-5.2-codex' }
   ] as const
 
@@ -281,7 +285,7 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
     p.log.info([
       'Profiles:',
       '  - Balanced: on-request approvals, workspace-write sandbox, web search on.',
-      '  - Safe: on-failure approvals, read-only sandbox, web search off.',
+      '  - Safe: untrusted approvals, read-only sandbox, web search off.',
       '  - YOLO: never approvals, danger-full-access, gpt-5.2-codex, high reasoning.'
     ].join('\n'))
   }
@@ -355,7 +359,7 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
     profileMode = modeResponse
   }
 
-  // --- Advanced config options (Codex v0.88 config keys) -------------------
+  // --- Advanced config options (Codex v0.101 config keys) -------------------
 
   if (selectedProfiles.length > 0 && !cliArgs.webSearchArg) {
     p.log.info('Note: this overrides profiles.<name>.web_search for the profiles you are writing. Root web_search is unchanged (fallback only).')
@@ -420,6 +424,21 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
     tuiAlternateScreen = alt
   }
 
+  if (!cliArgs.personalityArg) {
+    const pers = await p.select({
+      message: 'Personality (optional)',
+      options: [
+        { label: 'Skip (leave unchanged)', value: 'skip' },
+        { label: 'None', value: 'none', hint: 'no personality framing' },
+        { label: 'Friendly', value: 'friendly' },
+        { label: 'Pragmatic', value: 'pragmatic' }
+      ],
+      initialValue: (personality && personality !== 'skip') ? personality : 'skip'
+    }) as PersonalityChoice
+    if (p.isCancel(pers)) return cancelWizard()
+    personality = pers
+  }
+
   if (!cliArgs.experimentalArg) {
     const experimentalChoice = await p.select({
       message: 'Experimental features (from Codex /experimental menu)',
@@ -433,16 +452,19 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
 
     if (experimentalChoice === 'choose') {
       p.log.info('Tip: press Esc to go back.')
+      const options: Array<{ label: string; value: ExperimentalFeature; hint?: string }> = [
+        { label: 'Sub-agents', value: 'sub-agents', hint: 'allow spawning sub-agents (requires restart)' },
+        { label: 'Apps', value: 'apps', hint: 'use connected ChatGPT Apps via "$" and /apps (requires restart)' }
+      ]
+      if (process.platform === 'linux') {
+        options.push({ label: 'Bubblewrap sandbox (Linux)', value: 'bubblewrap-sandbox', hint: 'try experimental Linux sandbox pipeline (requires restart)' })
+      }
+      if (process.platform === 'darwin') {
+        options.push({ label: 'Prevent sleep while running (macOS)', value: 'prevent-idle-sleep', hint: 'keep your computer awake during turns (requires restart)' })
+      }
       const picked = await multiselectWithBack({
         message: 'Enable experimental features',
-        options: [
-          { label: 'Background terminal', value: 'background-terminal', hint: 'run long-running commands in background' },
-          { label: 'Shell snapshot', value: 'shell-snapshot', hint: 'snapshot shell env to speed up commands' },
-          { label: 'Apps', value: 'apps', hint: 'use connected ChatGPT Apps via "$" (requires restart)' },
-          { label: 'Steer conversation', value: 'steering', hint: 'Enter submits, Tab queues messages' },
-          { label: 'Personality', value: 'personality', hint: 'choose a communication style (requires restart)' },
-          { label: 'Collaboration modes', value: 'collaboration-modes', hint: 'enable Plan/Pair/Execute modes (requires restart)' }
-        ]
+        options
       })
       if (picked === 'back') {
         experimentalFeatures = undefined
@@ -684,6 +706,7 @@ export async function runInstallWizard(input: InstallWizardInput): Promise<Insta
       fileOpener,
       credentialsStore,
       tuiAlternateScreen,
+      personality,
       experimentalFeatures,
       suppressUnstableWarning
     }
@@ -765,12 +788,10 @@ function isProfile(value: unknown): value is 'balanced'|'safe'|'yolo' {
 
 function isExperimentalFeature(value: string): value is ExperimentalFeature {
   // Only accept features exposed in Codex TUI's /experimental menu
-  return value === 'background-terminal' ||
-    value === 'shell-snapshot' ||
-    value === 'apps' ||
-    value === 'steering' ||
-    value === 'personality' ||
-    value === 'collaboration-modes'
+  return value === 'apps' ||
+    value === 'sub-agents' ||
+    value === 'bubblewrap-sandbox' ||
+    value === 'prevent-idle-sleep'
 }
 
 function cancelWizard(): null {

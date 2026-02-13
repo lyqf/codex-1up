@@ -127,7 +127,7 @@ export async function execCapture(
   proc.stdout?.on('data', (chunk) => { stdout += String(chunk) })
   proc.stderr?.on('data', (chunk) => { stderr += String(chunk) })
 
-  let timeout: NodeJS.Timeout | undefined
+  let timeout: ReturnType<typeof setTimeout> | undefined
   if (options.timeoutMs && options.timeoutMs > 0) {
     timeout = setTimeout(() => {
       timedOut = true

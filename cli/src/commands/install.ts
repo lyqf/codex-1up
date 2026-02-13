@@ -12,6 +12,7 @@ import type {
   ExperimentalFeature,
   FileOpenerChoice,
   InstallerOptions,
+  PersonalityChoice,
   SuppressUnstableWarning,
   ToolId,
   TuiAltScreenChoice,
@@ -39,14 +40,15 @@ export const installCommand = defineCommand({
     'install-node': { type: 'string', description: 'nvm|brew|skip' },
     tools: { type: 'string', description: 'all|skip|<comma-separated tool ids> (rg, fd, fzf, jq, yq, ast-grep, bat, git, git-delta, gh)' },
     'codex-cli': { type: 'string', description: 'yes|no install/upgrade Codex CLI + ast-grep globally' },
-    'profiles-scope': { type: 'string', description: 'single|all (write one profile or all profiles)' },
+    'profiles-scope': { type: 'string', description: 'single|all|selected (write one profile or multiple profiles)' },
     profile: { type: 'string', description: 'balanced|safe|yolo|skip (choose profile to write)' },
     'profile-mode': { type: 'string', description: 'add|overwrite (profile table merge strategy)' },
     'web-search': { type: 'string', description: 'disabled|cached|live|skip (override profiles.<name>.web_search for installed profiles; does not set root web_search)' },
     'file-opener': { type: 'string', description: 'cursor|vscode|vscode-insiders|windsurf|none|skip (open citations in editor)' },
     'credentials-store': { type: 'string', description: 'auto|file|keyring|skip (set cli_auth_credentials_store + mcp_oauth_credentials_store)' },
     'alt-screen': { type: 'string', description: 'auto|always|never|skip (set tui.alternate_screen)' },
-    experimental: { type: 'string', description: 'comma-separated experimental feature toggles: background-terminal, shell-snapshot, apps, steering, personality, collaboration-modes (from Codex /experimental menu)' },
+    personality: { type: 'string', description: 'none|friendly|pragmatic|skip (set root personality)' },
+    experimental: { type: 'string', description: 'comma-separated /experimental feature toggles: apps, sub-agents, bubblewrap-sandbox, prevent-idle-sleep (platform-dependent)' },
     'suppress-unstable-warning': { type: 'boolean', description: 'Suppress "Under-development features enabled …" warning (hides reminder; features may still be unstable)' },
     sound: { type: 'string', description: 'Sound file, "none", or "skip" to leave unchanged' },
     'agents-md': { type: 'string', description: 'Write starter AGENTS.md to PATH (default PWD/AGENTS.md)', required: false },
@@ -68,6 +70,7 @@ export const installCommand = defineCommand({
     const cliProfileScope = normalizeProfileScope(args['profiles-scope'])
     const cliCodexCliChoice = normalizeYesNoArg(args['codex-cli'])
     const isUnixLike = process.platform === 'darwin' || process.platform === 'linux'
+    const argsRecord = args as Record<string, unknown>
     const cliSoundArg = typeof args.sound === 'undefined'
       ? undefined
       : String(args.sound).trim()
@@ -86,10 +89,12 @@ export const installCommand = defineCommand({
     const cliAltScreenArg = typeof args['alt-screen'] === 'undefined'
       ? undefined
       : String(args['alt-screen']).trim()
+    const cliPersonalityArg = typeof argsRecord.personality === 'undefined'
+      ? undefined
+      : String(argsRecord.personality).trim()
     const cliExperimentalArg = typeof args.experimental === 'undefined'
       ? undefined
       : String(args.experimental).trim()
-    const argsRecord = args as Record<string, unknown>
     const cliSkillsArg = typeof argsRecord.skills === 'undefined'
       ? undefined
       : String(argsRecord.skills).trim()
@@ -101,6 +106,7 @@ export const installCommand = defineCommand({
     if (cliFileOpenerArg === '') throw new Error('Invalid --file-opener value (expected cursor|vscode|vscode-insiders|windsurf|none|skip)')
     if (cliCredentialsStoreArg === '') throw new Error('Invalid --credentials-store value (expected auto|file|keyring|skip)')
     if (cliAltScreenArg === '') throw new Error('Invalid --alt-screen value (expected auto|always|never|skip)')
+    if (cliPersonalityArg === '') throw new Error('Invalid --personality value (expected none|friendly|pragmatic|skip)')
     if (cliExperimentalArg === '') throw new Error('Invalid --experimental value (expected comma-separated list)')
 
     const hasNoVscodeFlag = rawArgs.some(arg => arg === '--no-vscode' || arg.startsWith('--no-vscode='))
@@ -132,6 +138,7 @@ export const installCommand = defineCommand({
     let fileOpener: FileOpenerChoice | undefined
     let credentialsStore: CredentialsStoreChoice | undefined
     let tuiAlternateScreen: TuiAltScreenChoice | undefined
+    let personality: PersonalityChoice | undefined
     let experimentalFeatures: ExperimentalFeature[] | undefined
     let suppressUnstableWarning: SuppressUnstableWarning | undefined
 
@@ -179,6 +186,9 @@ export const installCommand = defineCommand({
     }
     if (cliAltScreenArg) {
       tuiAlternateScreen = normalizeAltScreenArg(cliAltScreenArg)
+    }
+    if (cliPersonalityArg) {
+      personality = normalizePersonalityArg(cliPersonalityArg)
     }
     if (cliExperimentalArg) {
       experimentalFeatures = parseExperimentalArg(cliExperimentalArg)
@@ -230,6 +240,7 @@ export const installCommand = defineCommand({
           fileOpenerArg: cliFileOpenerArg,
           credentialsStoreArg: cliCredentialsStoreArg,
           altScreenArg: cliAltScreenArg,
+          personalityArg: cliPersonalityArg,
           experimentalArg: cliExperimentalArg
         },
         selections: {
@@ -250,6 +261,7 @@ export const installCommand = defineCommand({
           fileOpener,
           credentialsStore,
           tuiAlternateScreen,
+          personality,
           experimentalFeatures,
           suppressUnstableWarning
         }
@@ -273,6 +285,7 @@ export const installCommand = defineCommand({
         fileOpener,
         credentialsStore,
         tuiAlternateScreen,
+        personality,
         experimentalFeatures,
         suppressUnstableWarning
       } = wizardResult.selections)
@@ -318,6 +331,7 @@ export const installCommand = defineCommand({
       fileOpener,
       credentialsStore,
       tuiAlternateScreen,
+      personality,
       experimentalFeatures,
       suppressUnstableWarning,
       mode: 'manual',
@@ -380,11 +394,11 @@ function normalizeProfileMode(value: unknown): ('add'|'overwrite') | undefined {
   throw new Error('Invalid --profile-mode value (use add|overwrite).')
 }
 
-function normalizeProfileScope(value: unknown): ('single'|'all') | undefined {
+function normalizeProfileScope(value: unknown): ('single'|'all'|'selected') | undefined {
   if (value === undefined || value === null) return undefined
   const normalized = String(value).toLowerCase()
-  if (normalized === 'single' || normalized === 'all') return normalized
-  throw new Error('Invalid --profiles-scope value (use single|all).')
+  if (normalized === 'single' || normalized === 'all' || normalized === 'selected') return normalized
+  throw new Error('Invalid --profiles-scope value (use single|all|selected).')
 }
 
 function normalizeYesNoArg(value: unknown): ('yes'|'no') | undefined {
@@ -425,6 +439,13 @@ function normalizeAltScreenArg(value: string): TuiAltScreenChoice {
   throw new Error('Invalid --alt-screen value (use auto|always|never|skip).')
 }
 
+function normalizePersonalityArg(value: string): PersonalityChoice {
+  const normalized = String(value).trim().toLowerCase()
+  if (normalized === 'skip') return 'skip'
+  if (normalized === 'none' || normalized === 'friendly' || normalized === 'pragmatic') return normalized
+  throw new Error('Invalid --personality value (use none|friendly|pragmatic|skip).')
+}
+
 function parseExperimentalArg(value: string): ExperimentalFeature[] {
   const parts = String(value)
     .split(',')
@@ -434,12 +455,10 @@ function parseExperimentalArg(value: string): ExperimentalFeature[] {
   // Only accept features exposed in Codex TUI's /experimental menu
   for (const p of parts) {
     if (
-      p === 'background-terminal' ||
-      p === 'shell-snapshot' ||
       p === 'apps' ||
-      p === 'steering' ||
-      p === 'personality' ||
-      p === 'collaboration-modes'
+      p === 'sub-agents' ||
+      p === 'bubblewrap-sandbox' ||
+      p === 'prevent-idle-sleep'
     ) {
       if (!out.includes(p)) out.push(p)
       continue

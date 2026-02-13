@@ -139,17 +139,27 @@ describe('install args mapping', () => {
       yes: true,
       'skip-confirmation': true,
       'dry-run': true,
-      experimental: 'background-terminal,shell-snapshot,apps,steering,personality,collaboration-modes'
+      experimental: 'apps,sub-agents,bubblewrap-sandbox,prevent-idle-sleep'
     }) })
     const opts = captured.pop()
     expect(opts.experimentalFeatures).toEqual([
-      'background-terminal',
-      'shell-snapshot',
       'apps',
-      'steering',
-      'personality',
-      'collaboration-modes'
+      'sub-agents',
+      'bubblewrap-sandbox',
+      'prevent-idle-sleep'
     ])
+  })
+
+  it('maps personality', async () => {
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+    await runCommand(installCommand, { rawArgs: buildRawArgsFromFlags({
+      yes: true,
+      'skip-confirmation': true,
+      'dry-run': true,
+      personality: 'pragmatic'
+    }) })
+    const opts = captured.pop()
+    expect(opts.personality).toBe('pragmatic')
   })
 
   it('rejects unknown experimental feature', async () => {

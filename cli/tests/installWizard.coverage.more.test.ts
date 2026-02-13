@@ -83,7 +83,7 @@ describe('runInstallWizard (extra coverage)', () => {
       '# AGENTS\n\n## Rules\n\n- Be deterministic\n',
       'utf8'
     )
-    const cliArgs: InstallWizardInput['cliArgs'] = {}
+    const cliArgs: InstallWizardInput['cliArgs'] = { personalityArg: 'skip' }
     return {
       repoRoot,
       isUnixLike: true,
@@ -162,6 +162,7 @@ describe('runInstallWizard (extra coverage)', () => {
     input.cliArgs.fileOpenerArg = 'skip'
     input.cliArgs.credentialsStoreArg = 'skip'
     input.cliArgs.altScreenArg = 'skip'
+    input.cliArgs.personalityArg = 'skip'
     input.cliArgs.experimentalArg = 'skip'
 
     // Profiles: skip installing any profiles
@@ -296,6 +297,8 @@ describe('runInstallWizard (extra coverage)', () => {
   it('covers advanced prompts selections (web search, opener, creds, alt-screen, experimental)', async () => {
     const input = await makeInput()
     input.cliArgs.toolsArg = 'skip'
+    // Let this test exercise the personality prompt (advanced config section).
+    delete (input.cliArgs as any).personalityArg
 
     // Profiles scope: choose "selected" and pick yolo only.
     promptState.selects.push(() => 'selected')
@@ -309,8 +312,9 @@ describe('runInstallWizard (extra coverage)', () => {
     promptState.selects.push(() => 'cursor')  // file opener
     promptState.selects.push(() => 'auto')    // credential store
     promptState.selects.push(() => 'never')   // alternate screen
+    promptState.selects.push(() => 'skip')    // personality
     promptState.selects.push(() => 'choose')  // experimental: choose (not skip)
-    promptState.multiselects.push(() => ['background-terminal', 'steering'])
+    promptState.multiselects.push(() => ['apps', 'sub-agents'])
 
     // Default profile confirm (single selected profile)
     promptState.confirms.push(() => true)
@@ -331,7 +335,7 @@ describe('runInstallWizard (extra coverage)', () => {
     expect(res!.selections.fileOpener).toBe('cursor')
     expect(res!.selections.credentialsStore).toBe('auto')
     expect(res!.selections.tuiAlternateScreen).toBe('never')
-    expect(res!.selections.experimentalFeatures).toEqual(['background-terminal', 'steering'])
+    expect(res!.selections.experimentalFeatures).toEqual(['apps', 'sub-agents'])
 
     await fs.rm(input.repoRoot, { recursive: true, force: true })
   })
@@ -345,6 +349,7 @@ describe('runInstallWizard (extra coverage)', () => {
     input.cliArgs.fileOpenerArg = 'skip'
     input.cliArgs.credentialsStoreArg = 'skip'
     input.cliArgs.altScreenArg = 'skip'
+    input.cliArgs.personalityArg = 'skip'
     input.cliArgs.experimentalArg = 'skip'
 
     // Profiles scope: choose selected and pick two profiles.
@@ -396,6 +401,7 @@ describe('runInstallWizard (extra coverage)', () => {
     input.cliArgs.fileOpenerArg = 'skip'
     input.cliArgs.credentialsStoreArg = 'skip'
     input.cliArgs.altScreenArg = 'skip'
+    input.cliArgs.personalityArg = 'skip'
     input.cliArgs.experimentalArg = 'skip'
 
     // Profiles: skip all

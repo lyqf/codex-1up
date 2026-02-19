@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.22] - 2026-02-19
+
 ### Added
 - Installer: add `--personality` and wizard prompt to set `personality = "none"|"friendly"|"pragmatic"` in `~/.codex/config.toml`.
 - Config: migrate legacy `model_personality` to `personality`.
